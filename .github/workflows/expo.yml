@@ -1,0 +1,62 @@
+name: Expo EAS Build
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: timeflow
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # needed to count all commits
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: timeflow/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # - name: Install Expo & EAS CLI
+      #   run: npm install -g expo-cli eas-cli
+
+      - name: Auto version bump from Git commits
+        run: |
+          VERSION_REVISION=$(git rev-list --count HEAD)
+          echo "VERSION_REVISION=$VERSION_REVISION"
+
+          # Update package.json
+          jq --arg ver "1.0.$VERSION_REVISION" '.version = $ver' package.json > package.tmp.json
+          mv package.tmp.json package.json
+
+          # Update app.json
+          jq --arg ver "1.0.$VERSION_REVISION" '.expo.version = $ver' app.json > app.tmp.json
+          mv app.tmp.json app.json
+
+          echo "Updated versions:"
+          cat package.json | grep version
+          cat app.json | grep version
+
+      - name: Commit version bump (skip CI)
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add package.json app.json
+          git commit -m "chore: bump version [skip ci]" || echo "No changes to commit"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:${GITHUB_REF#refs/heads/}
