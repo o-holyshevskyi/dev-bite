@@ -56,6 +56,8 @@ export type ActivityEntry = {
   title: string;
   xpGained: number;
   timestamp: number;
+  snippetId?: string;
+  userAnswerId?: string;
 };
 
 export type StreakStatus = 'safe' | 'atRisk' | 'lost';
@@ -251,6 +253,7 @@ export interface UserStoreState {
   lastStreakDate: string | null;
   dailyState: DailyState;
   activityLog: ActivityEntry[];
+  shownAchievementBadgeIds: string[];
   settings: UserSettings;
   resetStore: () => void;
   setName: (name: string) => void;
@@ -266,16 +269,23 @@ export interface UserStoreState {
   setStack: (stack: string[]) => void;
   setDifficulty: (difficulty: string) => void;
   completeOnboarding: () => void;
-  markSnippetCompleted: (packId: string, snippetId: string, wasCorrect: boolean) => void;
+  markSnippetCompleted: (
+    packId: string,
+    snippetId: string,
+    wasCorrect: boolean,
+    userAnswerId?: string,
+  ) => void;
   markQuestionAsSolved: (id: string) => void;
   addXp: (amount: number) => void;
   incrementStreak: () => void;
   syncStreakIntegrity: () => void;
+  markAchievementBadgesSeen: (badgeIds: string[]) => void;
   logActivity: (entry: Omit<ActivityEntry, 'id' | 'timestamp'>) => void;
   ensureDailySet: () => void;
   submitDailyAnswer: (
     questionId: string,
     isCorrect: boolean,
+    userAnswerId?: string,
   ) => { nextQuestionId: string | null; isSetCompleted: boolean };
 }
 
@@ -313,6 +323,7 @@ function createInitialUserData(): Pick<
   | 'lastStreakDate'
   | 'dailyState'
   | 'activityLog'
+  | 'shownAchievementBadgeIds'
 > {
   return {
     profile: {
@@ -342,6 +353,7 @@ function createInitialUserData(): Pick<
     lastStreakDate: null,
     dailyState: createInitialDailyState(),
     activityLog: [],
+    shownAchievementBadgeIds: [],
   };
 }
 
@@ -423,7 +435,7 @@ export const useUserStore = create<UserStoreState>()(
         set(() => ({
           isOnboardingCompleted: true,
         })),
-      markSnippetCompleted: (packId, snippetId, wasCorrect) => {
+      markSnippetCompleted: (packId, snippetId, wasCorrect, userAnswerId) => {
         const state = get();
         const normalizedPackProgress = ensurePackProgressEntries(state.packProgress);
         const hasPackEntry = normalizedPackProgress.some((p) => p.packId === packId);
@@ -478,13 +490,13 @@ export const useUserStore = create<UserStoreState>()(
           packProgress: updatedPackProgress,
         });
 
-        if (practiceXpGain > 0) {
-          get().logActivity({
-            type: 'pack',
-            title: 'Practice Snippet Solved',
-            xpGained: practiceXpGain,
-          });
-        }
+        get().logActivity({
+          type: 'pack',
+          title: wasCorrect ? 'Practice Snippet Solved' : 'Practice Snippet Attempted',
+          xpGained: practiceXpGain,
+          snippetId,
+          userAnswerId,
+        });
       },
       markQuestionAsSolved: (id: string) => {
         const state = get();
@@ -542,6 +554,16 @@ export const useUserStore = create<UserStoreState>()(
           },
         });
       },
+      markAchievementBadgesSeen: (badgeIds) => {
+        if (badgeIds.length === 0) return;
+        set((state) => {
+          const current = state.shownAchievementBadgeIds ?? [];
+          const merged = Array.from(new Set([...current, ...badgeIds]));
+          return {
+            shownAchievementBadgeIds: merged,
+          };
+        });
+      },
       ensureDailySet: () => {
         const state = get();
         const today = getLocalDateKey();
@@ -589,7 +611,7 @@ export const useUserStore = create<UserStoreState>()(
           },
         });
       },
-      submitDailyAnswer: (questionId, isCorrect) => {
+      submitDailyAnswer: (questionId, isCorrect, userAnswerId) => {
         const state = get();
         const normalizedPackProgress = ensurePackProgressEntries(state.packProgress);
         const today = getLocalDateKey();
@@ -665,6 +687,14 @@ export const useUserStore = create<UserStoreState>()(
         const nextQuestionId = state.dailyState.questionIds[safeIndex + 1] ?? null;
         const completed = safeIndex >= 2;
 
+        get().logActivity({
+          type: 'daily',
+          title: isCorrect ? 'Daily Question Correct' : 'Daily Question Incorrect',
+          xpGained: xpGain,
+          snippetId: questionId,
+          userAnswerId,
+        });
+
         if (!completed) {
           set({
             rank,
@@ -726,6 +756,8 @@ export const useUserStore = create<UserStoreState>()(
           type: 'daily',
           title: 'Daily Challenge Completed',
           xpGained: totalDailyXp,
+          snippetId: questionId,
+          userAnswerId,
         });
 
         void scheduleDailyReminder({
@@ -760,6 +792,7 @@ export const useUserStore = create<UserStoreState>()(
           packProgress: ensurePackProgressEntries(state.packProgress),
           correctlySolvedDailyIds: state.correctlySolvedDailyIds ?? [],
           activityLog: state.activityLog ?? [],
+          shownAchievementBadgeIds: state.shownAchievementBadgeIds ?? [],
           settings: {
             notificationsEnabled: true,
             hapticsEnabled: true,
@@ -781,6 +814,7 @@ export const useUserStore = create<UserStoreState>()(
         lastStreakDate: state.lastStreakDate,
         dailyState: state.dailyState,
         activityLog: state.activityLog,
+        shownAchievementBadgeIds: state.shownAchievementBadgeIds,
         settings: state.settings,
       }),
     },

@@ -11,6 +11,7 @@ export type BadgeDef = {
   checkUnlock: (state: UserState) => boolean;
   getProgressLabel: (state: UserState) => string;
 };
+export type BadgeWithUnlock = BadgeDef & { isUnlocked: boolean };
 
 function getStartedPacksCount(state: UserState): number {
   return state.packProgress.filter(
@@ -197,3 +198,18 @@ export const BADGE_DEFINITIONS: BadgeDef[] = [
     getProgressLabel: (state) => `${state.rank.xp}/5000 XP`,
   },
 ];
+
+export function getBadgesWithUnlockState(state: UserState): BadgeWithUnlock[] {
+  return BADGE_DEFINITIONS.map((badge) => ({
+    ...badge,
+    isUnlocked: badge.checkUnlock(state),
+  }));
+}
+
+export function getUnlockedBadges(state: UserState): BadgeWithUnlock[] {
+  return getBadgesWithUnlockState(state).filter((badge) => badge.isUnlocked);
+}
+
+export function getLockedBadges(state: UserState): BadgeWithUnlock[] {
+  return getBadgesWithUnlockState(state).filter((badge) => !badge.isUnlocked);
+}

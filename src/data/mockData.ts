@@ -12,7 +12,7 @@ export interface Snippet {
   answers: AnswerOption[];
   correctAnswerId: string;
   /** Shown in explanation bottom sheet after answering */
-  explanation?: string;
+  explanation: string;
 }
 
 /** Used to match userStore.selectedStack for daily challenge filtering */
@@ -30,6 +30,10 @@ export interface QuizPack {
   tags?: string[];
   snippets: Snippet[];
 }
+
+type SeedSnippet = Omit<Snippet, 'explanation'> & { explanation?: string };
+type SeedQuizPack = Omit<QuizPack, 'snippets'> & { snippets: SeedSnippet[] };
+type AnswerId = 'a' | 'b' | 'c' | 'd';
 
 export interface DailyChallenge {
   id: string;
@@ -52,7 +56,7 @@ export interface RankInfo {
   xpForNextRank: number;
 }
 
-const baseQuizPacks: QuizPack[] = [
+const baseQuizPacks: SeedQuizPack[] = [
   {
     id: 'ts-generics',
     icon: 'terminal',
@@ -112,6 +116,8 @@ const baseQuizPacks: QuizPack[] = [
           },
         ],
         correctAnswerId: 'b',
+        explanation:
+          'Using extends on the generic type enforces that any value passed to getId has an id field of type string. Without the constraint, TypeScript cannot guarantee value.id exists safely.',
       },
     ],
   },
@@ -151,7 +157,7 @@ const baseQuizPacks: QuizPack[] = [
         ],
         correctAnswerId: 'b',
         explanation:
-          'Incrementing a shared variable (counter++) without synchronization (e.g. locks or atomic operations) is a classic race condition: multiple threads can read the same value, increment, and write back, losing updates.',
+          'Assigning s2 = s moves ownership of the String into s2. After the move, s is no longer valid, so trying to print both s and s2 causes a compile-time ownership error.',
       },
     ],
   },
@@ -255,6 +261,8 @@ const baseQuizPacks: QuizPack[] = [
           },
         ],
         correctAnswerId: 'b',
+        explanation:
+          'This style of read/write API usually signals eventual consistency: after a write, some readers may still see stale data briefly while replicas catch up.',
       },
     ],
   },
@@ -293,6 +301,8 @@ const baseQuizPacks: QuizPack[] = [
           },
         ],
         correctAnswerId: 'b',
+        explanation:
+          'counter++ is a read-modify-write operation, not an atomic step. Multiple threads can interleave those steps and overwrite each other, producing lost updates.',
       },
     ],
   },
@@ -330,6 +340,8 @@ const baseQuizPacks: QuizPack[] = [
           },
         ],
         correctAnswerId: 'b',
+        explanation:
+          'In Go, a type satisfies an interface implicitly by implementing its method set. Because *File has a Read method with the matching signature, it satisfies Reader without any explicit declaration.',
       },
     ],
   },
@@ -368,6 +380,8 @@ const baseQuizPacks: QuizPack[] = [
           },
         ],
         correctAnswerId: 'c',
+        explanation:
+          'The async keyword allows await to be used in the method body and changes the return type semantics to Task/Task<T>. It does not by itself move work to a background thread.',
       },
     ],
   },
@@ -1219,17 +1233,75 @@ function createDomainSnippet(pack: QuizPack, ordinal: number): Snippet {
   };
 }
 
-function ensurePackHasMinimumSnippets(pack: QuizPack): QuizPack {
-  if (pack.snippets.length >= MIN_SNIPPETS_PER_PACK) return pack;
+function ensureSnippetHasExplanation(snippet: Omit<Snippet, 'explanation'> & { explanation?: string }): Snippet {
+  if (snippet.explanation && snippet.explanation.trim().length > 0) {
+    return { ...snippet, explanation: snippet.explanation };
+  }
 
-  const ids = new Set(pack.snippets.map((snippet) => snippet.id));
-  const snippets = [...pack.snippets];
+  const correct = snippet.answers.find((answer) => answer.id === snippet.correctAnswerId)?.text;
+  const fallback = correct
+    ? `The correct answer is "${correct}" because it best matches the behavior shown in this snippet.`
+    : 'The correct answer is based on the language behavior demonstrated by this snippet.';
+  return {
+    ...snippet,
+    explanation: fallback,
+  };
+}
+
+function getPreferredCorrectAnswerId(snippetId: string): AnswerId {
+  const ids: AnswerId[] = ['a', 'b', 'c'];
+  let hash = 0;
+  for (let i = 0; i < snippetId.length; i += 1) {
+    hash = (hash * 31 + snippetId.charCodeAt(i)) >>> 0;
+  }
+  return ids[hash % ids.length];
+}
+
+function rebalanceSnippetAnswerPositions(snippet: Snippet): Snippet {
+  const targetCorrectId = getPreferredCorrectAnswerId(snippet.id);
+  if (snippet.correctAnswerId === targetCorrectId) return snippet;
+
+  const currentCorrectIndex = snippet.answers.findIndex(
+    (answer) => answer.id === snippet.correctAnswerId,
+  );
+  const targetIndex = snippet.answers.findIndex(
+    (answer) => answer.id === targetCorrectId,
+  );
+
+  if (currentCorrectIndex < 0 || targetIndex < 0) return snippet;
+
+  const answers = snippet.answers.map((answer) => ({ ...answer }));
+  const currentId = answers[currentCorrectIndex].id;
+  answers[currentCorrectIndex].id = answers[targetIndex].id;
+  answers[targetIndex].id = currentId;
+
+  return {
+    ...snippet,
+    answers,
+    correctAnswerId: targetCorrectId,
+  };
+}
+
+function ensurePackHasMinimumSnippets(pack: SeedQuizPack): QuizPack {
+  const normalizedPack: QuizPack = {
+    ...pack,
+    snippets: pack.snippets.map((snippet) =>
+      rebalanceSnippetAnswerPositions(ensureSnippetHasExplanation(snippet)),
+    ),
+  };
+
+  if (normalizedPack.snippets.length >= MIN_SNIPPETS_PER_PACK) return normalizedPack;
+
+  const ids = new Set(normalizedPack.snippets.map((snippet) => snippet.id));
+  const snippets = [...normalizedPack.snippets];
   let ordinal = 1;
 
   while (snippets.length < MIN_SNIPPETS_PER_PACK) {
     const candidateId = `${pack.id}-auto-${ordinal}`;
     if (!ids.has(candidateId)) {
-      const snippet = createDomainSnippet(pack, ordinal);
+      const snippet = rebalanceSnippetAnswerPositions(
+        createDomainSnippet(normalizedPack, ordinal),
+      );
       snippets.push(snippet);
       ids.add(candidateId);
     }
@@ -1237,7 +1309,7 @@ function ensurePackHasMinimumSnippets(pack: QuizPack): QuizPack {
   }
 
   return {
-    ...pack,
+    ...normalizedPack,
     snippets,
   };
 }

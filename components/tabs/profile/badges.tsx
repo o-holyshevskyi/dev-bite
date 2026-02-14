@@ -1,7 +1,7 @@
 import { ThemedText } from "@/components/themed-text";
 import { useUserStore } from "@/store/userStore";
 import { PentagonBadge } from "@/components/ui/pentagon-badge";
-import { BADGE_DEFINITIONS } from "@/src/utils/badges";
+import { getBadgesWithUnlockState } from "@/src/utils/badges";
 import { useRouter } from "expo-router";
 import { useThemeColor } from "heroui-native";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -12,10 +12,7 @@ const Badges = () => {
   const muted = useThemeColor("muted");
   const state = useUserStore();
 
-  const recentBadges = BADGE_DEFINITIONS.map((badge) => ({
-    ...badge,
-    isUnlocked: badge.checkUnlock(state),
-  }))
+  const recentBadges = getBadgesWithUnlockState(state)
     .sort((a, b) => Number(b.isUnlocked) - Number(a.isUnlocked))
     .slice(0, 5);
 

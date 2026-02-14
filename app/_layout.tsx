@@ -108,6 +108,7 @@ export default function RootLayout() {
             <Stack.Screen name="pack/[id]" options={{ headerShown: false, presentation: 'modal' }} />
             <Stack.Screen name="daily/results" options={{ headerShown: false, presentation: 'modal' }} />
             <Stack.Screen name="history" options={{ headerShown: false }} />
+            <Stack.Screen name="history/[id]" options={{ headerShown: false }} />
             <Stack.Screen
               name="badges"
               options={{ headerShown: false }}

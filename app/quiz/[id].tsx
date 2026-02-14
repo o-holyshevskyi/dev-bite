@@ -81,7 +81,7 @@ export default function QuizScreen() {
     if (isPackMode) {
       setNextQuestionId(null);
     } else {
-      const submitResult = submitDailyAnswer(activeId, correct);
+      const submitResult = submitDailyAnswer(activeId, correct, selectedOption);
       setNextQuestionId(submitResult.nextQuestionId);
     }
 
@@ -295,7 +295,7 @@ export default function QuizScreen() {
                 setIsResultDialogOpen(false);
                 if (isPackMode) {
                   if (currentPackId && activeId) {
-                    markSnippetCompleted(currentPackId, activeId, isCorrect);
+                    markSnippetCompleted(currentPackId, activeId, isCorrect, selectedOption ?? undefined);
                   }
                   router.back();
                   return;
