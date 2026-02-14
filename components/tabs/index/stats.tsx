@@ -3,12 +3,14 @@ import { IconSymbol } from "@/components/ui/icon-symbol.ios";
 import { quizPacks } from "@/src/data/mockData";
 import { getCurrentLevelBounds, getNextRankNameFromLevel } from "@/src/utils/rank";
 import useUserStore from "@/store/userStore";
+import { useRouter } from "expo-router";
 import { Button, Card, useThemeColor } from "heroui-native";
 import { useMemo } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { PieChart } from "react-native-gifted-charts";
 
 const Stats = () => {
+    const router = useRouter();
     const accent = useThemeColor('accent');
     const muted = useThemeColor('muted');
     const foreground = useThemeColor('foreground');
@@ -18,7 +20,7 @@ const Stats = () => {
     const rank = useUserStore((state) => state.rank);
 
     const handleViewHistoryPress = () => {
-        Alert.alert('View History button pressed');
+        router.push('/history');
     }
 
     const {

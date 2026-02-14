@@ -28,6 +28,13 @@ export interface UserStats {
 export interface PackProgress {
   packId: string;
   completedSnippetIds: string[];
+  incorrectSnippetIds: string[];
+}
+
+export interface UserSettings {
+  notificationsEnabled: boolean;
+  hapticsEnabled: boolean;
+  theme: 'dark' | 'light' | 'system';
 }
 
 export type DailyQuestionResult = 0 | 1 | 2; // 0=pending,1=correct,2=wrong
@@ -41,6 +48,16 @@ export interface DailyState {
   currentIndex: 0 | 1 | 2;
   lastGeneratedDate: string | null; // YYYY-MM-DD (local)
 }
+
+export type ActivityEntry = {
+  id: string;
+  type: 'daily' | 'pack';
+  title: string;
+  xpGained: number;
+  timestamp: number;
+};
+
+export type StreakStatus = 'safe' | 'atRisk' | 'lost';
 
 const XP_BY_INDEX = [10, 20, 30] as const;
 const PERFECT_SET_BONUS = 50;
@@ -64,6 +81,49 @@ function getYesterdayLocalDateKey(date = new Date()): string {
   const yesterday = new Date(date);
   yesterday.setDate(yesterday.getDate() - 1);
   return getLocalDateKey(yesterday);
+}
+
+function evaluateStreakAfterCompletion(
+  lastCompletedDate: string | null,
+  currentStreakDays: number,
+  today: string,
+  yesterday: string,
+): number {
+  if (lastCompletedDate === today) {
+    // Already completed a daily set today; do not inflate streak.
+    return Math.max(0, currentStreakDays);
+  }
+
+  if (lastCompletedDate === yesterday) {
+    return Math.max(0, currentStreakDays) + 1;
+  }
+
+  // Broken chain or first ever completion: today's completion starts at 1.
+  return 1;
+}
+
+function shouldResetStreakForDate(
+  lastCompletedDate: string | null,
+  today: string,
+  yesterday: string,
+): boolean {
+  if (!lastCompletedDate) return true;
+  return lastCompletedDate !== today && lastCompletedDate !== yesterday;
+}
+
+export function getStreakStatus(
+  streakDays: number,
+  lastCompletedDate: string | null,
+  now = new Date(),
+): StreakStatus {
+  const today = getLocalDateKey(now);
+  const yesterday = getYesterdayLocalDateKey(now);
+  const safeStreak = Math.max(0, streakDays);
+
+  if (safeStreak <= 0 || !lastCompletedDate) return 'lost';
+  if (lastCompletedDate === today) return 'safe';
+  if (lastCompletedDate === yesterday) return 'atRisk';
+  return 'lost';
 }
 
 function shiftDifficulty(base: Difficulty, delta: -1 | 0 | 1): Difficulty {
@@ -168,6 +228,7 @@ function ensurePackProgressEntries(progress: PackProgress[] | undefined): PackPr
     return {
       packId: pack.id,
       completedSnippetIds: existing?.completedSnippetIds ?? [],
+      incorrectSnippetIds: existing?.incorrectSnippetIds ?? [],
     };
   });
 }
@@ -188,9 +249,19 @@ export interface UserStoreState {
   /** ISO date string (YYYY-MM-DD) of last day streak was incremented */
   lastStreakDate: string | null;
   dailyState: DailyState;
+  activityLog: ActivityEntry[];
+  settings: UserSettings;
+  resetStore: () => void;
   setName: (name: string) => void;
   setTitle: (title: string) => void;
   setAvatarUrl: (avatarUrl: string | null) => void;
+  updateProfile: (
+    data: Partial<Pick<UserState['profile'], 'name' | 'title' | 'avatarUrl'>>,
+  ) => void;
+  updatePreferences: (
+    prefs: Partial<Pick<UserState, 'difficulty' | 'selectedStack'>>,
+  ) => void;
+  updateSettings: (newSettings: Partial<UserState['settings']>) => void;
   setStack: (stack: string[]) => void;
   setDifficulty: (difficulty: string) => void;
   completeOnboarding: () => void;
@@ -198,6 +269,8 @@ export interface UserStoreState {
   markQuestionAsSolved: (id: string) => void;
   addXp: (amount: number) => void;
   incrementStreak: () => void;
+  syncStreakIntegrity: () => void;
+  logActivity: (entry: Omit<ActivityEntry, 'id' | 'timestamp'>) => void;
   ensureDailySet: () => void;
   submitDailyAnswer: (
     questionId: string,
@@ -205,38 +278,80 @@ export interface UserStoreState {
   ) => { nextQuestionId: string | null; isSetCompleted: boolean };
 }
 
+export type UserState = UserStoreState;
+
+function createInitialDailyState(): DailyState {
+  return {
+    lastCompletedDate: null,
+    currentSetId: null,
+    results: [0, 0, 0],
+    isCompleted: false,
+    questionIds: [null, null, null],
+    currentIndex: 0,
+    lastGeneratedDate: null,
+  };
+}
+
+function cloneTopicMasteryDefaults(): typeof topicMastery {
+  return JSON.parse(JSON.stringify(topicMastery)) as typeof topicMastery;
+}
+
+function createInitialUserData(): Pick<
+  UserStoreState,
+  | 'profile'
+  | 'stats'
+  | 'rank'
+  | 'topicMastery'
+  | 'packProgress'
+  | 'isOnboardingCompleted'
+  | 'selectedStack'
+  | 'difficulty'
+  | 'settings'
+  | 'solvedDailyIds'
+  | 'correctlySolvedDailyIds'
+  | 'lastStreakDate'
+  | 'dailyState'
+  | 'activityLog'
+> {
+  return {
+    profile: {
+      name: 'Alex Chen',
+      title: 'Senior Architect',
+      avatarUrl: '',
+    },
+    stats: {
+      streakDays: 0,
+      solved: 0,
+      accuracy: 0.0,
+      globalRankTopPercent: 1,
+    },
+    rank: { ...initialRank },
+    topicMastery: cloneTopicMasteryDefaults(),
+    packProgress: ensurePackProgressEntries([]),
+    isOnboardingCompleted: false,
+    selectedStack: [],
+    difficulty: '',
+    settings: {
+      notificationsEnabled: true,
+      hapticsEnabled: true,
+      theme: 'dark',
+    },
+    solvedDailyIds: [],
+    correctlySolvedDailyIds: [],
+    lastStreakDate: null,
+    dailyState: createInitialDailyState(),
+    activityLog: [],
+  };
+}
+
 export const useUserStore = create<UserStoreState>()(
   persist(
     (set, get) => ({
-      profile: {
-        name: 'Alex Chen',
-        title: 'Senior Architect',
-        avatarUrl: '',
-      },
-      stats: {
-        streakDays: 0,
-        solved: 0,
-        accuracy: 0.00,
-        globalRankTopPercent: 0.005,
-      },
-      rank: initialRank,
-      topicMastery,
-      packProgress: ensurePackProgressEntries([]),
-      isOnboardingCompleted: false,
-      selectedStack: [],
-      difficulty: '',
-      solvedDailyIds: [],
-      correctlySolvedDailyIds: [],
-      lastStreakDate: null,
-      dailyState: {
-        lastCompletedDate: null,
-        currentSetId: null,
-        results: [0, 0, 0],
-        isCompleted: false,
-        questionIds: [null, null, null],
-        currentIndex: 0,
-        lastGeneratedDate: null,
-      },
+      ...createInitialUserData(),
+      resetStore: () =>
+        set(() => ({
+          ...createInitialUserData(),
+        })),
       setName: (name: string) =>
         set((state) => ({
           profile: {
@@ -256,6 +371,25 @@ export const useUserStore = create<UserStoreState>()(
           profile: {
             ...state.profile,
             avatarUrl: avatarUrl ?? state.profile.avatarUrl,
+          },
+        })),
+      updateProfile: (data) =>
+        set((state) => ({
+          profile: {
+            ...state.profile,
+            ...data,
+          },
+        })),
+      updatePreferences: (prefs) =>
+        set((state) => ({
+          difficulty: prefs.difficulty ?? state.difficulty,
+          selectedStack: prefs.selectedStack ?? state.selectedStack,
+        })),
+      updateSettings: (newSettings) =>
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            ...newSettings,
           },
         })),
       setStack: (stack: string[]) =>
@@ -291,22 +425,50 @@ export const useUserStore = create<UserStoreState>()(
       markSnippetCompleted: (packId, snippetId, wasCorrect) => {
         const state = get();
         const normalizedPackProgress = ensurePackProgressEntries(state.packProgress);
-
-        const existing = normalizedPackProgress.find((p) => p.packId === packId);
+        const hasPackEntry = normalizedPackProgress.some((p) => p.packId === packId);
+        const baseProgress = hasPackEntry
+          ? normalizedPackProgress
+          : [
+              ...normalizedPackProgress,
+              { packId, completedSnippetIds: [], incorrectSnippetIds: [] },
+            ];
+        const existing = baseProgress.find((p) => p.packId === packId);
         const alreadyCompleted = existing?.completedSnippetIds.includes(snippetId);
+        const isFirstTimeCompletion = !alreadyCompleted;
+        const alreadyIncorrect = existing?.incorrectSnippetIds.includes(snippetId);
 
-        const updatedPackProgress = normalizedPackProgress.map((p) =>
-          p.packId !== packId || alreadyCompleted
-            ? p
-            : {
-                ...p,
-                completedSnippetIds: [...p.completedSnippetIds, snippetId],
-              },
-        );
+        const updatedPackProgress = baseProgress.map((p) => {
+          if (p.packId !== packId) return p;
 
-        const solvedDelta = alreadyCompleted ? 0 : 1;
+          if (wasCorrect) {
+            return {
+              ...p,
+              completedSnippetIds: alreadyCompleted
+                ? p.completedSnippetIds
+                : [...p.completedSnippetIds, snippetId],
+              incorrectSnippetIds: p.incorrectSnippetIds.filter((id) => id !== snippetId),
+            };
+          }
+
+          return {
+            ...p,
+            completedSnippetIds: p.completedSnippetIds,
+            incorrectSnippetIds: alreadyIncorrect
+              ? p.incorrectSnippetIds
+              : [...p.incorrectSnippetIds, snippetId],
+          };
+        });
+
+        const shouldAwardPracticeXp = wasCorrect && isFirstTimeCompletion;
+        const solvedDelta = shouldAwardPracticeXp ? 1 : 0;
+        const practiceXpGain = shouldAwardPracticeXp ? 5 : 0;
+        const nextRank =
+          practiceXpGain > 0
+            ? getNormalizedRankFromXp(state.rank, state.rank.xp + practiceXpGain)
+            : state.rank;
 
         set({
+          rank: nextRank,
           stats: {
             ...state.stats,
             solved: state.stats.solved + solvedDelta,
@@ -314,6 +476,14 @@ export const useUserStore = create<UserStoreState>()(
           },
           packProgress: updatedPackProgress,
         });
+
+        if (practiceXpGain > 0) {
+          get().logActivity({
+            type: 'pack',
+            title: 'Practice Snippet Solved',
+            xpGained: practiceXpGain,
+          });
+        }
       },
       markQuestionAsSolved: (id: string) => {
         const state = get();
@@ -328,6 +498,19 @@ export const useUserStore = create<UserStoreState>()(
           rank: getNormalizedRankFromXp(state.rank, nextXp),
         });
       },
+      logActivity: (entry) => {
+        const now = Date.now();
+        set((state) => ({
+          activityLog: [
+            {
+              ...entry,
+              id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+              timestamp: now,
+            },
+            ...state.activityLog,
+          ].slice(0, 50),
+        }));
+      },
       incrementStreak: () => {
         const state = get();
         const today = getLocalDateKey();
@@ -340,16 +523,31 @@ export const useUserStore = create<UserStoreState>()(
           lastStreakDate: today,
         });
       },
+      syncStreakIntegrity: () => {
+        const state = get();
+        const today = getLocalDateKey();
+        const yesterday = getYesterdayLocalDateKey();
+        const needsReset = shouldResetStreakForDate(
+          state.dailyState.lastCompletedDate,
+          today,
+          yesterday,
+        );
+        if (!needsReset || state.stats.streakDays === 0) return;
+
+        set({
+          stats: {
+            ...state.stats,
+            streakDays: 0,
+          },
+        });
+      },
       ensureDailySet: () => {
         const state = get();
         const today = getLocalDateKey();
         const yesterday = getYesterdayLocalDateKey();
 
-        // Streak freeze is not implemented yet, so we reset if user skipped days.
         if (
-          state.dailyState.lastCompletedDate &&
-          state.dailyState.lastCompletedDate !== today &&
-          state.dailyState.lastCompletedDate < yesterday &&
+          shouldResetStreakForDate(state.dailyState.lastCompletedDate, today, yesterday) &&
           state.stats.streakDays > 0
         ) {
           set({
@@ -421,10 +619,27 @@ export const useUserStore = create<UserStoreState>()(
             ? normalizedPackProgress
             : normalizedPackProgress.map((pack) => {
                 if (pack.packId !== packId) return pack;
-                if (pack.completedSnippetIds.includes(questionId)) return pack;
+                const alreadyCompleted = pack.completedSnippetIds.includes(questionId);
+                const alreadyIncorrect = pack.incorrectSnippetIds.includes(questionId);
+
+                if (isCorrect) {
+                  return {
+                    ...pack,
+                    completedSnippetIds: alreadyCompleted
+                      ? pack.completedSnippetIds
+                      : [...pack.completedSnippetIds, questionId],
+                    incorrectSnippetIds: pack.incorrectSnippetIds.filter(
+                      (id) => id !== questionId,
+                    ),
+                  };
+                }
+
+                if (alreadyIncorrect) return pack;
+
                 return {
                   ...pack,
-                  completedSnippetIds: [...pack.completedSnippetIds, questionId],
+                  completedSnippetIds: pack.completedSnippetIds,
+                  incorrectSnippetIds: [...pack.incorrectSnippetIds, questionId],
                 };
               });
 
@@ -473,15 +688,18 @@ export const useUserStore = create<UserStoreState>()(
         const rankWithBonus = perfect
           ? getNormalizedRankFromXp(rank, rank.xp + PERFECT_SET_BONUS)
           : rank;
+        const dailyXp = nextResults.reduce<number>((sum, result, index) => {
+          if (result !== 1) return sum;
+          return sum + XP_BY_INDEX[index];
+        }, 0);
+        const totalDailyXp = dailyXp + (perfect ? PERFECT_SET_BONUS : 0);
 
-        let streakDays = state.stats.streakDays;
-        if (state.dailyState.lastCompletedDate === today) {
-          // no-op (already completed today)
-        } else if (state.dailyState.lastCompletedDate === yesterday) {
-          streakDays += 1;
-        } else {
-          streakDays = 1;
-        }
+        const streakDays = evaluateStreakAfterCompletion(
+          state.dailyState.lastCompletedDate,
+          state.stats.streakDays,
+          today,
+          yesterday,
+        );
 
         set({
           rank: rankWithBonus,
@@ -503,13 +721,19 @@ export const useUserStore = create<UserStoreState>()(
           },
         });
 
+        get().logActivity({
+          type: 'daily',
+          title: 'Daily Challenge Completed',
+          xpGained: totalDailyXp,
+        });
+
         return { nextQuestionId: null, isSetCompleted: true };
       },
     }),
     {
       name: 'user-store',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 5,
+      version: 6,
       migrate: (persistedState: unknown) => {
         const state = (persistedState ?? {}) as Partial<UserStoreState> & {
           rank?: Partial<typeof initialRank>;
@@ -527,6 +751,13 @@ export const useUserStore = create<UserStoreState>()(
           },
           packProgress: ensurePackProgressEntries(state.packProgress),
           correctlySolvedDailyIds: state.correctlySolvedDailyIds ?? [],
+          activityLog: state.activityLog ?? [],
+          settings: {
+            notificationsEnabled: true,
+            hapticsEnabled: true,
+            theme: 'dark',
+            ...(state.settings ?? {}),
+          },
         } as UserStoreState;
       },
       partialize: (state) => ({
@@ -541,6 +772,8 @@ export const useUserStore = create<UserStoreState>()(
         correctlySolvedDailyIds: state.correctlySolvedDailyIds,
         lastStreakDate: state.lastStreakDate,
         dailyState: state.dailyState,
+        activityLog: state.activityLog,
+        settings: state.settings,
       }),
     },
   ),

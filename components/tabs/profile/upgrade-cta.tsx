@@ -1,26 +1,55 @@
 import { ThemedText } from "@/components/themed-text";
+import { useRouter } from "expo-router";
 import { Button, useThemeColor } from "heroui-native";
-import { StyleSheet, View } from "react-native";
+import { Alert, Pressable, StyleSheet, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 
 const UpgradeCta = () => {
+  const router = useRouter();
   const accent = useThemeColor("accent");
   const background = useThemeColor("background");
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handleUpgradePress = () => {
+    void router;
+    Alert.alert("Coming Soon", "Pro upgrade is coming soon.");
+  };
 
   return (
     <View style={styles.container}>
-      <Button
-        size="lg"
-        style={[
-          styles.button,
-          {
-            backgroundColor: accent,
-          },
-        ]}
+      <Pressable
+        onPress={handleUpgradePress}
+        onPressIn={() => {
+          scale.value = withSpring(0.97);
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1);
+        }}
       >
-        <ThemedText style={[styles.label, { color: background }]}>
-          Upgrade to Pro
-        </ThemedText>
-      </Button>
+        <Animated.View style={animatedStyle}>
+          <Button
+            size="lg"
+            style={[
+              styles.button,
+              {
+                backgroundColor: accent,
+              },
+            ]}
+          >
+            <ThemedText style={[styles.label, { color: background }]}>
+              Upgrade to Pro
+            </ThemedText>
+          </Button>
+        </Animated.View>
+      </Pressable>
     </View>
   );
 };

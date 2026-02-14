@@ -3,8 +3,9 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { HeroUINativeProvider } from 'heroui-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect } from 'react';
+import { AppState } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import '../global.css';
 
@@ -20,6 +21,7 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const isOnboardingCompleted = useUserStore((state) => state.isOnboardingCompleted);
+  const syncStreakIntegrity = useUserStore((state) => state.syncStreakIntegrity);
 
   const [loaded] = useFonts({
     JetBrainsMono_400Regular,
@@ -40,6 +42,20 @@ export default function RootLayout() {
     }
   }, [loaded, isOnboardingCompleted, router, segments]);
 
+  useEffect(() => {
+    syncStreakIntegrity();
+
+    const appStateListener = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        syncStreakIntegrity();
+      }
+    });
+
+    return () => {
+      appStateListener.remove();
+    };
+  }, [syncStreakIntegrity]);
+
   if (!loaded) return null;
 
   return (
@@ -57,7 +73,13 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="quiz/[id]" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="pack/[id]" options={{ headerShown: false, presentation: 'modal' }} />
             <Stack.Screen name="daily/results" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="history" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="badges"
+              options={{ headerShown: false }}
+            />
             <Stack.Screen name="modals" options={{ headerShown: false,presentation: 'modal' }} />
           </Stack>
           <StatusBar style="auto" />

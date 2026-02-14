@@ -1,12 +1,22 @@
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol.ios";
+import { useRouter } from "expo-router";
 import { Button, Card, Chip, useThemeColor } from "heroui-native";
-import { Alert, StyleSheet, View } from "react-native";
+import { useEffect } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
+import Animated, {
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+    withTiming
+} from "react-native-reanimated";
 import { quizPacks } from "@/src/data/mockData";
 import useUserStore from "@/store/userStore";
 
 const RecentPacksCard = () => {
+    const router = useRouter();
     const accent = useThemeColor('accent');
     const muted = useThemeColor('muted');
     const foreground = useThemeColor('foreground');
@@ -14,7 +24,7 @@ const RecentPacksCard = () => {
     const packProgress = useUserStore((state) => state.packProgress);
 
     const handleSeeAllPress = () => {
-        Alert.alert('See All button pressed');
+        router.push('/(tabs)/explore');
     }
 
     const packs = quizPacks.map((pack) => {
@@ -31,6 +41,7 @@ const RecentPacksCard = () => {
         }
 
         return {
+            id: pack.id,
             title: pack.title,
             description: pack.description,
             status,
@@ -40,16 +51,108 @@ const RecentPacksCard = () => {
         };
     });
 
+    const inProgressPacks = packs
+        .filter((pack) => pack.status === 'In Progress')
+        .sort((a, b) => b.progress - a.progress);
+
+    const notStartedPacks = packs
+        .filter((pack) => pack.status === 'Not Started');
+
+    const hasStartedAnyPack = packs.some((pack) => pack.progress > 0);
+    const title = hasStartedAnyPack ? 'Continue Learning' : 'Explore New';
+    const visiblePacks = (
+        hasStartedAnyPack
+            ? (inProgressPacks.length > 0 ? inProgressPacks : notStartedPacks)
+            : notStartedPacks
+    )
+        .slice(0, 5);
+
+    const handlePackPress = (packId: string) => {
+        router.push({
+            pathname: '/pack/[id]',
+            params: { id: packId },
+        } as never);
+    };
+
     return <View style={styles.container}>
         <View style={styles.titleSection}>
-            <ThemedText style={{ fontSize: 20, fontWeight: 'bold' }}>Continue Learning</ThemedText>
+            <ThemedText style={{ fontSize: 20, fontWeight: 'bold' }}>{title}</ThemedText>
             <Button size="sm" variant="ghost" onPress={handleSeeAllPress}>
                 <Button.Label style={{ color: accent, fontWeight: 'bold' }}>See All</Button.Label>
             </Button>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-            {packs.map((pack, index) => (
-                <Card style={[styles.statCard, { backgroundColor: accent + '20', borderWidth: 1, borderColor: accent + '40' }]} key={index}>
+            {visiblePacks.map((pack) => (
+                <PackItemCard
+                    key={pack.id}
+                    pack={pack}
+                    accent={accent}
+                    muted={muted}
+                    foreground={foreground}
+                    onPress={handlePackPress}
+                />
+            ))}
+        </ScrollView>
+    </View>
+}
+
+type PackItem = {
+    id: string;
+    title: string;
+    description: string;
+    status: 'Not Started' | 'In Progress' | 'Completed';
+    icon: string;
+    color: string;
+    progress: number;
+};
+
+const PackItemCard = ({
+    pack,
+    accent,
+    muted,
+    foreground,
+    onPress,
+}: {
+    pack: PackItem;
+    accent: string;
+    muted: string;
+    foreground: string;
+    onPress: (packId: string) => void;
+}) => {
+    const pressScale = useSharedValue(1);
+    const progressWidth = useSharedValue(0);
+
+    useEffect(() => {
+        progressWidth.value = withTiming(pack.progress * 100, {
+            duration: 800,
+            easing: Easing.out(Easing.exp),
+        });
+    }, [pack.progress, progressWidth]);
+
+    const pressAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: pressScale.value }],
+    }));
+
+    const progressAnimatedStyle = useAnimatedStyle(() => ({
+        width: `${progressWidth.value}%`,
+    }));
+
+    const handlePressIn = () => {
+        pressScale.value = withTiming(0.97, { duration: 120 });
+    };
+
+    const handlePressOut = () => {
+        pressScale.value = withSpring(1, {
+            damping: 14,
+            stiffness: 220,
+            mass: 0.7,
+        });
+    };
+
+    return (
+        <Pressable onPress={() => onPress(pack.id)} onPressIn={handlePressIn} onPressOut={handlePressOut}>
+            <Animated.View style={pressAnimatedStyle}>
+                <Card style={[styles.statCard, { backgroundColor: accent + '20', borderWidth: 1, borderColor: accent + '40' }]}>
                     <Card.Header style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <View style={[styles.stateIconContainer, { backgroundColor: pack.color + '40' }]}>
                             <IconSymbol name={pack.icon as any} size={22} color={pack.color} />
@@ -68,21 +171,23 @@ const RecentPacksCard = () => {
                     </Card.Body>
                     <Card.Footer style={{ marginTop: 12 }}>
                         <View style={{ height: 5, backgroundColor: pack.color + '40', borderRadius: 9999 }}>
-                            <View
-                                style={{
-                                    height: '100%',
-                                    width: `${pack.progress * 100}%`,
-                                    backgroundColor: pack.color,
-                                    borderRadius: 9999,
-                                }}
+                            <Animated.View
+                                style={[
+                                    {
+                                        height: '100%',
+                                        backgroundColor: pack.color,
+                                        borderRadius: 9999,
+                                    },
+                                    progressAnimatedStyle,
+                                ]}
                             />
                         </View>
                     </Card.Footer>
                 </Card>
-            ))}
-        </ScrollView>
-    </View>
-}
+            </Animated.View>
+        </Pressable>
+    );
+};
 
 const StatusChip = ({status, icon, color}: {status: string, icon: string, color: string}) => {
     const muted = useThemeColor('muted');

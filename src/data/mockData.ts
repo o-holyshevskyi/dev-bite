@@ -27,6 +27,7 @@ export interface QuizPack {
   isLocked: boolean;
   difficulty: Difficulty;
   language: PackLanguage;
+  tags?: string[];
   snippets: Snippet[];
 }
 
@@ -51,7 +52,7 @@ export interface RankInfo {
   xpForNextRank: number;
 }
 
-export const quizPacks: QuizPack[] = [
+const baseQuizPacks: QuizPack[] = [
   {
     id: 'ts-generics',
     icon: 'terminal',
@@ -124,6 +125,7 @@ export const quizPacks: QuizPack[] = [
       'Practice Rust ownership, borrowing, and lifetimes with small, focused snippets.',
     difficulty: 'hard',
     language: 'General',
+    tags: ['Rust'],
     snippets: [
       {
         id: 'rust-own-1',
@@ -228,6 +230,7 @@ export const quizPacks: QuizPack[] = [
       'High-level design questions around scalability, consistency, and trade-offs.',
     difficulty: 'hard',
     language: 'General',
+    tags: ['System Design'],
     snippets: [
       {
         id: 'sys-design-1',
@@ -265,6 +268,7 @@ export const quizPacks: QuizPack[] = [
       'Reason about race conditions, deadlocks, and synchronization primitives.',
     difficulty: 'medium',
     language: 'General',
+    tags: ['Concurrency'],
     snippets: [
       {
         id: 'concurrency-1',
@@ -339,6 +343,7 @@ export const quizPacks: QuizPack[] = [
       'C# syntax, async/await, and memory management fundamentals.',
     difficulty: 'easy',
     language: 'General',
+    tags: ['.Net'],
     snippets: [
       {
         id: 'dotnet-1',
@@ -979,6 +984,265 @@ export const quizPacks: QuizPack[] = [
     ],
   },
 ];
+
+const MIN_SNIPPETS_PER_PACK = 25;
+
+type AutoTrack =
+  | 'typescript'
+  | 'react'
+  | 'go'
+  | 'python'
+  | 'rust'
+  | 'system'
+  | 'dotnet'
+  | 'general';
+
+const TRACK_TOPICS: Record<AutoTrack, string[]> = {
+  typescript: [
+    'generic constraints',
+    'discriminated unions',
+    'narrowing unknown',
+    'readonly tuple behavior',
+    'mapped type remapping',
+    'conditional type inference',
+    'keyof and indexed access',
+    'utility type composition',
+    'type guards',
+    'never exhaustiveness checks',
+  ],
+  react: [
+    'effect dependency safety',
+    'stale closure prevention',
+    'memoization boundaries',
+    'state normalization',
+    'list key stability',
+    'render splitting',
+    'custom hook contract',
+    'event handler identity',
+    'derived state pitfalls',
+    'component composition',
+  ],
+  go: [
+    'interface satisfaction',
+    'error wrapping',
+    'context cancellation',
+    'goroutine lifecycle',
+    'channel close semantics',
+    'select default usage',
+    'pointer receiver behavior',
+    'slice capacity growth',
+    'map read safety',
+    'defer ordering',
+  ],
+  python: [
+    'iterator consumption',
+    'generator laziness',
+    'async task gathering',
+    'context manager usage',
+    'dict mutation safety',
+    'truthy/falsy edge cases',
+    'default argument traps',
+    'list comprehension scope',
+    'exception narrowing',
+    'dataclass defaults',
+  ],
+  rust: [
+    'ownership transfer',
+    'borrow checker constraints',
+    'mutable aliasing rules',
+    'lifetime annotation meaning',
+    'match exhaustiveness',
+    'Result propagation',
+    'Option unwrapping strategy',
+    'iterator borrowing',
+    'trait bound design',
+    'move vs clone',
+  ],
+  system: [
+    'cache invalidation strategy',
+    'idempotency guarantees',
+    'queue retry policy',
+    'read/write consistency',
+    'horizontal scaling boundary',
+    'backpressure handling',
+    'hot partition mitigation',
+    'circuit breaker behavior',
+    'event ordering',
+    'observability signal selection',
+  ],
+  dotnet: [
+    'nullable reference checks',
+    'async/await deadlock avoidance',
+    'LINQ materialization timing',
+    'dependency injection lifetimes',
+    'record immutability',
+    'Task cancellation',
+    'middleware ordering',
+    'exception filter behavior',
+    'value vs reference semantics',
+    'IEnumerable deferred execution',
+  ],
+  general: [
+    'algorithmic complexity tradeoff',
+    'boundary condition validation',
+    'error-first thinking',
+    'pure function design',
+    'state transition clarity',
+    'input normalization',
+    'defensive programming',
+    'side effect isolation',
+    'testability improvements',
+    'refactor safety',
+  ],
+};
+
+function getAutoTrack(pack: QuizPack): AutoTrack {
+  if (pack.id.includes('react')) return 'react';
+  if (pack.id.includes('go-') || pack.language === 'Go') return 'go';
+  if (pack.id.includes('python') || pack.language === 'Python') return 'python';
+  if (pack.id.includes('rust')) return 'rust';
+  if (pack.id.includes('system')) return 'system';
+  if (pack.id.includes('dotnet')) return 'dotnet';
+  if (pack.id.includes('ts-') || pack.language === 'TypeScript') return 'typescript';
+  return pack.language === 'General' ? 'general' : 'general';
+}
+
+function makeCodeExample(track: AutoTrack, pack: QuizPack, ordinal: number, topic: string): string {
+  const fn = `${pack.id.replace(/-/g, '_')}_${ordinal}`;
+
+  switch (track) {
+    case 'python':
+      return `def ${fn}(payload):\n    # ${pack.title}: ${topic}\n    return payload\n`;
+    case 'go':
+      return `func ${fn}(ctx context.Context, input string) (string, error) {\n  // ${pack.title}: ${topic}\n  return input, nil\n}\n`;
+    case 'rust':
+      return `fn ${fn}(value: String) -> String {\n    // ${pack.title}: ${topic}\n    value\n}\n`;
+    case 'react':
+      return `function ${fn}({ value }: { value: string }) {\n  // ${pack.title}: ${topic}\n  return <Text>{value}</Text>;\n}\n`;
+    case 'dotnet':
+      return `public static string ${fn}(string input)\n{\n    // ${pack.title}: ${topic}\n    return input;\n}\n`;
+    case 'system':
+      return `// ${pack.title}: ${topic}\n// Service A -> Queue -> Worker -> DB\n`;
+    case 'typescript':
+      return `function ${fn}<T>(value: T): T {\n  // ${pack.title}: ${topic}\n  return value;\n}\n`;
+    default:
+      return `function ${fn}(value) {\n  // ${pack.title}: ${topic}\n  return value;\n}\n`;
+  }
+}
+
+function getRealWorldAnswers(track: AutoTrack, topic: string): AnswerOption[] {
+  switch (track) {
+    case 'typescript':
+      return [
+        { id: 'a', text: `Silence type errors with "as any" to ship ${topic} faster.` },
+        { id: 'b', text: `Model ${topic} explicitly with safe narrowing and exhaustive checks.` },
+        { id: 'c', text: `Duplicate runtime checks everywhere and ignore type design.` },
+        { id: 'd', text: `Turn off strict mode for this module to reduce friction.` },
+      ];
+    case 'react':
+      return [
+        { id: 'a', text: `Leave dependency arrays empty and rely on manual refresh.` },
+        { id: 'b', text: `Use stable dependencies and cleanup logic to prevent UI drift around ${topic}.` },
+        { id: 'c', text: `Store derived values in multiple local states to keep views in sync.` },
+        { id: 'd', text: `Trigger state updates inside render for immediate consistency.` },
+      ];
+    case 'go':
+      return [
+        { id: 'a', text: `Ignore returned errors so requests stay fast in production.` },
+        { id: 'b', text: `Propagate context and explicit errors to make ${topic} observable and safe.` },
+        { id: 'c', text: `Spawn goroutines without cancellation and trust process restarts.` },
+        { id: 'd', text: `Use shared globals to avoid passing dependencies.` },
+      ];
+    case 'python':
+      return [
+        { id: 'a', text: `Catch broad exceptions and continue silently on failures.` },
+        { id: 'b', text: `Handle ${topic} with explicit exceptions and deterministic resource cleanup.` },
+        { id: 'c', text: `Mutate default function arguments for lightweight caching.` },
+        { id: 'd', text: `Rely on implicit truthiness for all data validation.` },
+      ];
+    case 'rust':
+      return [
+        { id: 'a', text: `Clone aggressively to bypass borrow checker decisions.` },
+        { id: 'b', text: `Design ownership flow explicitly and return Result/Option for ${topic}.` },
+        { id: 'c', text: `Use unwrap everywhere in request-handling paths.` },
+        { id: 'd', text: `Hide lifetimes behind static references to simplify signatures.` },
+      ];
+    case 'system':
+      return [
+        { id: 'a', text: `Scale writes first and postpone consistency strategy until incidents.` },
+        { id: 'b', text: `Define SLIs/SLOs and failure boundaries before implementing ${topic}.` },
+        { id: 'c', text: `Use one global queue for every workload to simplify ops.` },
+        { id: 'd', text: `Treat retries as idempotent without request keys.` },
+      ];
+    case 'dotnet':
+      return [
+        { id: 'a', text: `Block on .Result in request pipeline code to simplify async flows.` },
+        { id: 'b', text: `Flow CancellationToken and explicit nullability contracts for ${topic}.` },
+        { id: 'c', text: `Register all services as singleton to reduce allocations.` },
+        { id: 'd', text: `Materialize every LINQ query immediately as a default rule.` },
+      ];
+    default:
+      return [
+        { id: 'a', text: `Optimize quickly and postpone correctness checks.` },
+        { id: 'b', text: `Prefer explicit, testable behavior with clear boundaries around ${topic}.` },
+        { id: 'c', text: `Rely on hidden side effects to reduce boilerplate.` },
+        { id: 'd', text: `Treat edge cases as out-of-scope for production paths.` },
+      ];
+  }
+}
+
+function createDomainSnippet(pack: QuizPack, ordinal: number): Snippet {
+  const track = getAutoTrack(pack);
+  const topics = TRACK_TOPICS[track];
+  const topic = topics[(ordinal - 1) % topics.length];
+  const scenarios = [
+    'a payment retry flow',
+    'a production incident postmortem',
+    'a high-traffic API release',
+    'a cache invalidation bug',
+    'a race condition reported by users',
+    'an onboarding feature rollout',
+    'a background worker backlog',
+    'a mobile latency regression',
+  ];
+  const scenario = scenarios[(ordinal - 1) % scenarios.length];
+  const question = `${pack.title}: In ${scenario}, what is the best approach for ${topic}?`;
+
+  return {
+    id: `${pack.id}-auto-${ordinal}`,
+    question,
+    code: makeCodeExample(track, pack, ordinal, topic),
+    answers: getRealWorldAnswers(track, topic),
+    correctAnswerId: 'b',
+    explanation:
+      `In real systems, ${topic} should be implemented with explicit contracts, observability, and safe failure handling so behavior remains predictable under load.`,
+  };
+}
+
+function ensurePackHasMinimumSnippets(pack: QuizPack): QuizPack {
+  if (pack.snippets.length >= MIN_SNIPPETS_PER_PACK) return pack;
+
+  const ids = new Set(pack.snippets.map((snippet) => snippet.id));
+  const snippets = [...pack.snippets];
+  let ordinal = 1;
+
+  while (snippets.length < MIN_SNIPPETS_PER_PACK) {
+    const candidateId = `${pack.id}-auto-${ordinal}`;
+    if (!ids.has(candidateId)) {
+      const snippet = createDomainSnippet(pack, ordinal);
+      snippets.push(snippet);
+      ids.add(candidateId);
+    }
+    ordinal += 1;
+  }
+
+  return {
+    ...pack,
+    snippets,
+  };
+}
+
+export const quizPacks: QuizPack[] = baseQuizPacks.map(ensurePackHasMinimumSnippets);
 
 export const dailyChallenge: DailyChallenge = {
   id: 'daily-memory-leak',

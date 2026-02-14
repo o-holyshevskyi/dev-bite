@@ -1,11 +1,10 @@
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol.ios";
-import useUserStore from "@/store/userStore";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import useUserStore, { getStreakStatus } from "@/store/userStore";
 import { format } from "date-fns";
-import { Button, Chip, useThemeColor } from "heroui-native";
+import { Chip, useThemeColor } from "heroui-native";
 import { useEffect, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 const Header = () => {
     const foreground = useThemeColor('foreground');
@@ -25,15 +24,9 @@ const Header = () => {
             <View>
                 <ThemedText style={[styles.headerDateText, { color: muted }]}>{date}</ThemedText>
                 <ThemedText style={[styles.headerGreetingText, { color: foreground }]}>Good Morning, {profile.name}</ThemedText>
-                <Button size="sm" variant="secondary" isIconOnly onPress={() => {
-                    AsyncStorage.removeItem('user-store');
-                }}>
-                    <Button.Label>Logout</Button.Label>
-                </Button>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                 <StreakChip />
-                <SettingsButtonIcon />
             </View>
         </View>
     );
@@ -42,25 +35,48 @@ const Header = () => {
 export const StreakChip = () => {
     const accent = useThemeColor('accent');
     const muted = useThemeColor('muted');
+    const streakDays = useUserStore((state) => state.stats.streakDays);
+    const lastCompletedDate = useUserStore((state) => state.dailyState.lastCompletedDate);
+    const safeStreakDays = Math.max(0, streakDays);
+    const streakStatus = getStreakStatus(safeStreakDays, lastCompletedDate);
+
+    const iconColor =
+        streakStatus === 'safe'
+            ? '#FF9F0A'
+            : streakStatus === 'atRisk'
+                ? muted + 'CC'
+                : muted + '66';
+    const chipOpacity = streakStatus === 'safe' ? 1 : streakStatus === 'atRisk' ? 0.85 : 0.6;
+    const chipBackground =
+        streakStatus === 'safe'
+            ? accent + '70'
+            : streakStatus === 'atRisk'
+                ? muted + '30'
+                : muted + '18';
+    const chipBorder =
+        streakStatus === 'safe'
+            ? accent + '99'
+            : streakStatus === 'atRisk'
+                ? muted + '88'
+                : muted + '55';
+    const labelColor = streakStatus === 'safe' ? accent : muted + 'D0';
 
     return (
-        <Chip size="lg" style={[styles.streakChip, { height: 32, borderColor: muted + '80', backgroundColor: accent + '60' }]}>
-            <IconSymbol name="flame" size={18} color={'orange'} style={{ marginRight: 2 }} />
-            <ThemedText style={[styles.streakChipText, { color: accent }]}>12</ThemedText>
+        <Chip
+            size="lg"
+            style={[
+                styles.streakChip,
+                {
+                    height: 32,
+                    borderColor: chipBorder,
+                    backgroundColor: chipBackground,
+                    opacity: chipOpacity,
+                },
+            ]}
+        >
+            <IconSymbol name="flame" size={18} color={iconColor} style={{ marginRight: 2 }} />
+            <ThemedText style={[styles.streakChipText, { color: labelColor }]}>{safeStreakDays}</ThemedText>
         </Chip>
-    );
-}
-
-const SettingsButtonIcon = () => {
-    const accent = useThemeColor('accent');
-    const handleSettingsPress = () => {
-        Alert.alert('Settings button pressed');
-    }
-
-    return (
-        <Button size="sm" variant="secondary" isIconOnly onPress={handleSettingsPress}>
-            <IconSymbol name="gear" size={24} color={accent} />
-        </Button>
     );
 }
 

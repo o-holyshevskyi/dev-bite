@@ -1,12 +1,71 @@
 import { ThemedText } from "@/components/themed-text";
-import { Card, useThemeColor } from "heroui-native";
-import { StyleSheet, View } from "react-native";
 import { IconSymbol } from "@/components/ui/icon-symbol.ios";
+import { useUserStore } from "@/store/userStore";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from "expo-constants";
+import { useRouter } from "expo-router";
+import { Card, useThemeColor } from "heroui-native";
+import { Alert, Pressable, StyleSheet, Switch, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 
 const Preferences = () => {
   const muted = useThemeColor("muted");
   const foreground = useThemeColor("foreground");
   const accent = useThemeColor("accent");
+  const router = useRouter();
+  const resetStore = useUserStore((state) => state.resetStore);
+  const difficulty = useUserStore((state) => state.difficulty);
+  const settings = useUserStore((state) => state.settings);
+  const updatePreferences = useUserStore((state) => state.updatePreferences);
+  const updateSettings = useUserStore((state) => state.updateSettings);
+  const appVersion = Constants.expoConfig?.version ?? "1.0.0";
+
+  const difficultyLabel =
+    difficulty === "Mid" ? "Middle" : difficulty.length > 0 ? difficulty : "Not set";
+
+  const handleDifficultyPress = () => {
+    Alert.alert("Difficulty", "Select your learning difficulty", [
+      {
+        text: "Junior",
+        onPress: () => updatePreferences({ difficulty: "Junior" }),
+      },
+      {
+        text: "Middle",
+        onPress: () => updatePreferences({ difficulty: "Mid" }),
+      },
+      {
+        text: "Senior",
+        onPress: () => updatePreferences({ difficulty: "Senior" }),
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const handleLogoutPress = () => {
+    Alert.alert(
+      "Log Out",
+      "Are you sure you want to log out and reset all local progress?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Log Out",
+          style: "destructive",
+          onPress: async () => {
+            resetStore();
+            try {
+              await AsyncStorage.removeItem('user-store');
+            } finally {
+              router.replace('/');
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -26,13 +85,28 @@ const Preferences = () => {
             iconColor={accent}
             foreground={foreground}
             muted={muted}
+            type="switch"
+            switchValue={settings.notificationsEnabled}
+            onSwitchChange={(val) => updateSettings({ notificationsEnabled: val })}
           />
           <PreferenceRow
-            iconName="paintbrush"
-            label="Theme Preferences"
+            iconName="waveform"
+            label="Haptic Feedback"
             iconColor={accent}
             foreground={foreground}
             muted={muted}
+            type="switch"
+            switchValue={settings.hapticsEnabled}
+            onSwitchChange={(val) => updateSettings({ hapticsEnabled: val })}
+          />
+          <PreferenceRow
+            iconName="paintbrush"
+            label="Difficulty"
+            iconColor={accent}
+            foreground={foreground}
+            muted={muted}
+            value={difficultyLabel}
+            onPress={handleDifficultyPress}
           />
           <PreferenceRow
             iconName="questionmark.circle"
@@ -48,6 +122,16 @@ const Preferences = () => {
             foreground="#F97373"
             muted={muted}
             isDestructive
+            onPress={handleLogoutPress}
+          />
+          <PreferenceRow
+            iconName="info.circle"
+            label="App Version"
+            iconColor={muted}
+            foreground={muted}
+            muted={muted}
+            value={appVersion}
+            showChevron={false}
           />
         </Card.Body>
       </Card>
@@ -61,6 +145,12 @@ type PreferenceRowProps = {
   iconColor: string;
   foreground: string;
   muted: string;
+  type?: "link" | "switch";
+  onPress?: () => void;
+  value?: string;
+  switchValue?: boolean;
+  onSwitchChange?: (val: boolean) => void;
+  showChevron?: boolean;
   isDestructive?: boolean;
 };
 
@@ -70,32 +160,81 @@ const PreferenceRow = ({
   iconColor,
   foreground,
   muted,
+  type = "link",
+  onPress,
+  value,
+  switchValue = false,
+  onSwitchChange,
+  showChevron = true,
   isDestructive,
 }: PreferenceRowProps) => {
+  const isSwitch = type === "switch";
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePress = () => {
+    if (isSwitch && onSwitchChange) {
+      onSwitchChange(!switchValue);
+      return;
+    }
+    onPress?.();
+  };
+
+  const isInteractive = isSwitch ? !!onSwitchChange : !!onPress;
+
   return (
-    <View style={styles.row}>
-      <View style={styles.rowLeft}>
-        <View
-          style={[
-            styles.iconContainer,
-            {
-              backgroundColor: iconColor + "20",
-            },
-          ]}
-        >
-          <IconSymbol name={iconName} size={20} color={iconColor} />
+    <Pressable
+      onPress={handlePress}
+      disabled={!isInteractive}
+      onPressIn={() => {
+        scale.value = withSpring(0.97);
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1);
+      }}
+    >
+      <Animated.View style={[styles.row, animatedStyle]}>
+        <View style={styles.rowLeft}>
+          <View
+            style={[
+              styles.iconContainer,
+              {
+                backgroundColor: iconColor + "20",
+              },
+            ]}
+          >
+            <IconSymbol name={iconName as any} size={20} color={iconColor} />
+          </View>
+          <ThemedText
+            style={[
+              styles.rowLabel,
+              { color: isDestructive ? "#F97373" : foreground },
+            ]}
+          >
+            {label}
+          </ThemedText>
         </View>
-        <ThemedText
-          style={[
-            styles.rowLabel,
-            { color: isDestructive ? "#F97373" : foreground },
-          ]}
-        >
-          {label}
-        </ThemedText>
-      </View>
-      <IconSymbol name="chevron.right" size={16} color={muted} />
-    </View>
+        <View style={styles.rowRight}>
+          {value ? (
+            <ThemedText style={[styles.valueText, { color: muted }]}>
+              {value}
+            </ThemedText>
+          ) : null}
+          {isSwitch ? (
+            <Switch
+              value={switchValue}
+              onValueChange={onSwitchChange}
+              trackColor={{ false: muted + "66", true: iconColor + "80" }}
+              thumbColor={switchValue ? iconColor : "#f5f5f5"}
+            />
+          ) : showChevron ? (
+            <IconSymbol name="chevron.right" size={16} color={muted} />
+          ) : null}
+        </View>
+      </Animated.View>
+    </Pressable>
   );
 };
 
@@ -125,6 +264,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
+  rowRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   iconContainer: {
     width: 32,
     height: 32,
@@ -135,6 +279,10 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontSize: 16,
     fontWeight: "600",
+  },
+  valueText: {
+    fontSize: 14,
+    fontWeight: "500",
   },
 });
 

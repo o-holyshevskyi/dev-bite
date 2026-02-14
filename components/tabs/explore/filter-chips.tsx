@@ -1,5 +1,7 @@
 import { ThemedText } from "@/components/themed-text";
 import { Chip, useThemeColor } from "heroui-native";
+import { quizPacks } from "@/src/data/mockData";
+import { useMemo } from "react";
 import { View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 
@@ -8,19 +10,42 @@ interface FilterChipsProps {
     onChangeChip: (chip: string) => void;
 }
 
-const chips = [
-    'All',
+const preferredChipOrder = [
     'React',
+    'TypeScript',
+    'Go',
+    'Python',
     'Rust',
     '.Net',
     'Concurrency',
     'System Design',
-]
+];
 
 const FilterChips = ({ chip, onChangeChip }: FilterChipsProps) => {
     const accent = useThemeColor('accent');
     const muted = useThemeColor('muted');
     const foreground = useThemeColor('foreground');
+    const chips = useMemo(() => {
+        const dynamicValues = quizPacks.flatMap((pack) => {
+            const values: string[] = [];
+
+            if (pack.language !== 'General') {
+                values.push(pack.language);
+            }
+
+            if (pack.tags?.length) {
+                values.push(...pack.tags);
+            }
+
+            return values;
+        });
+
+        const available = new Set(dynamicValues);
+        const orderedPreferred = preferredChipOrder.filter((item) => available.has(item));
+        const additional = Array.from(available).filter((item) => !preferredChipOrder.includes(item));
+
+        return ['All', ...orderedPreferred, ...additional];
+    }, []);
 
     return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ marginTop: 16, paddingVertical: 8, gap: 8 }}>
         {chips.map((item, index) => {

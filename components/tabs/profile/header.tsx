@@ -1,9 +1,8 @@
 import { ThemedText } from "@/components/themed-text";
-import { IconSymbol } from "@/components/ui/icon-symbol.ios";
 import { format } from "date-fns";
-import { Button, useThemeColor } from "heroui-native";
+import { useThemeColor } from "heroui-native";
 import { useEffect, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 const Header = () => {
     const foreground = useThemeColor('foreground');
@@ -27,23 +26,8 @@ const Header = () => {
             <View>
                 <ThemedText style={[styles.headerTitleText, { color: foreground }]}>Profile</ThemedText>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <SettingsButtonIcon />
-            </View>
+            <View />
         </View>
-    );
-}
-
-const SettingsButtonIcon = () => {
-    const accent = useThemeColor('accent');
-    const handleSettingsPress = () => {
-        Alert.alert('Settings button pressed');
-    }
-
-    return (
-        <Button size="sm" variant="secondary" isIconOnly onPress={handleSettingsPress}>
-            <IconSymbol name="gear" size={24} color={accent} />
-        </Button>
     );
 }
 

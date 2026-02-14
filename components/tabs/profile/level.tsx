@@ -5,9 +5,9 @@ import {
     getNextRankNameFromLevel,
     getRankNameFromLevel,
 } from "@/src/utils/rank";
+import useUserStore from "@/store/userStore";
 import { Card, useThemeColor } from "heroui-native";
 import { View } from "react-native";
-import useUserStore from "@/store/userStore";
 
 const Level = () => {
     const accent = useThemeColor('accent');
@@ -26,7 +26,7 @@ const Level = () => {
 
     return <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
         <Card
-            style={{ backgroundColor: accent + '20', borderWidth: 1, borderColor: accent + '40', borderRadius: 999 }}        
+            style={{ backgroundColor: accent + '20', borderWidth: 1, borderColor: accent + '40', borderRadius: 25 }}        
         >
             <Card.Header 
                 style={{

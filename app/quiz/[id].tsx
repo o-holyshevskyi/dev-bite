@@ -33,7 +33,7 @@ function getCodeLanguage(packId: string): string {
 }
 
 export default function QuizScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, packId } = useLocalSearchParams<{ id: string; packId?: string }>();
   const router = useRouter();
   const muted = useThemeColor('muted');
   const accent = useThemeColor('accent');
@@ -44,6 +44,7 @@ export default function QuizScreen() {
   const dailyState = useUserStore((s) => s.dailyState);
   const ensureDailySet = useUserStore((s) => s.ensureDailySet);
   const submitDailyAnswer = useUserStore((s) => s.submitDailyAnswer);
+  const markSnippetCompleted = useUserStore((s) => s.markSnippetCompleted);
 
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [status, setStatus] = useState<CheckStatus>('idle');
@@ -54,12 +55,16 @@ export default function QuizScreen() {
   const confettiRef = useRef<ConfettiCannon>(null);
 
   const insets = useSafeAreaInsets();
+  const currentPackId = typeof packId === 'string' && packId.length > 0 ? packId : null;
+  const isPackMode = !!currentPackId;
   const requestedId = typeof id === 'string' ? id : null;
   const idFromSet = dailyState.questionIds[dailyState.currentIndex];
   const activeId =
-    requestedId && dailyState.questionIds.includes(requestedId)
+    isPackMode
       ? requestedId
-      : idFromSet;
+      : requestedId && dailyState.questionIds.includes(requestedId)
+        ? requestedId
+        : idFromSet;
   const data = activeId ? getSnippetWithPackById(activeId) : null;
   const snippet = data?.snippet;
   const pack = data?.pack;
@@ -73,9 +78,12 @@ export default function QuizScreen() {
     setIsChecking(true);
     const correct = selectedOption === correctAnswerId;
     setStatus(correct ? 'correct' : 'wrong');
-
-    const submitResult = submitDailyAnswer(activeId, correct);
-    setNextQuestionId(submitResult.nextQuestionId);
+    if (isPackMode) {
+      setNextQuestionId(null);
+    } else {
+      const submitResult = submitDailyAnswer(activeId, correct);
+      setNextQuestionId(submitResult.nextQuestionId);
+    }
 
     if (correct) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -93,12 +101,13 @@ export default function QuizScreen() {
     snippet,
     activeId,
     correctAnswerId,
+    isPackMode,
     submitDailyAnswer,
   ]);
 
   useEffect(() => {
-    ensureDailySet();
-  }, [ensureDailySet]);
+    if (!isPackMode) ensureDailySet();
+  }, [ensureDailySet, isPackMode]);
 
   if (!data || !snippet || !pack) {
     return (
@@ -132,12 +141,31 @@ export default function QuizScreen() {
       >
         <View style={styles.headerRow}>
           <ThemedText style={[styles.headerLabel, { color: muted }]}>
-            Daily Challenge {dailyState.currentIndex + 1} / 3
+            {isPackMode
+              ? 'Practice Mode'
+              : `Daily Challenge ${dailyState.currentIndex + 1} / 3`}
           </ThemedText>
           <ThemedText style={[styles.packLabel, { color: accent }]}>
             {pack.title}
           </ThemedText>
         </View>
+        {!isPackMode && (
+          <View style={styles.dailyProgressDots}>
+            {dailyState.results.map((result, index) => {
+              const backgroundColor =
+                result === 1 ? accent : result === 2 ? danger : 'transparent';
+              return (
+                <View
+                  key={index}
+                  style={[
+                    styles.dailyProgressDot,
+                    { borderColor: muted + '90', backgroundColor },
+                  ]}
+                />
+              );
+            })}
+          </View>
+        )}
 
         <ThemedText style={[styles.questionText, { color: foreground }]}>
           {snippet.question}
@@ -265,6 +293,13 @@ export default function QuizScreen() {
             <Button
               onPress={() => {
                 setIsResultDialogOpen(false);
+                if (isPackMode) {
+                  if (currentPackId && activeId) {
+                    markSnippetCompleted(currentPackId, activeId, isCorrect);
+                  }
+                  router.back();
+                  return;
+                }
                 if (nextQuestionId) {
                   setSelectedOption(null);
                   setStatus('idle');
@@ -279,7 +314,13 @@ export default function QuizScreen() {
               }}
             >
               <Button.Label>
-                {isWrong ? 'Got it' : nextQuestionId ? 'Continue' : 'View Results'}
+                {isPackMode
+                  ? 'Back to Pack'
+                  : isWrong
+                    ? 'Got it'
+                    : nextQuestionId
+                      ? 'Continue'
+                      : 'View Results'}
               </Button.Label>
             </Button>
           </Dialog.Content>
@@ -319,6 +360,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
+  },
+  dailyProgressDots: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  dailyProgressDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1.5,
   },
   headerLabel: {
     fontSize: 14,

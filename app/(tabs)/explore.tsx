@@ -2,7 +2,9 @@ import { ExploreCardItem } from '@/components/tabs/explore/explore-cards';
 import FilterChips from '@/components/tabs/explore/filter-chips';
 import Header from '@/components/tabs/explore/header';
 import SearchBar from '@/components/tabs/explore/search-bar';
-import { useState } from 'react';
+import { ThemedText } from '@/components/themed-text';
+import { IconSymbol } from '@/components/ui/icon-symbol.ios';
+import { useMemo, useState } from 'react';
 import { ListRenderItem, StyleSheet, View } from 'react-native';
 import Animated, {
     Extrapolation,
@@ -23,6 +25,7 @@ interface Snippet {
 }
 
 export interface ExploreCard {
+    id: string;
     icon: string;
 	color: string;
     isLocked: boolean;
@@ -41,28 +44,48 @@ export default function ExploreScreen() {
 
     const [searchText, setSearchText] = useState('');
     const [filterChip, setFilterChip] = useState('All');
+    const trimmedSearchText = searchText.trim();
 
-    const exploreCards: ExploreCard[] = quizPacks.map((pack) => {
-        const progressForPack = packProgress.find((p) => p.packId === pack.id);
-        const completed = progressForPack?.completedSnippetIds.length ?? 0;
-        const total = pack.snippets.length || 1;
-        const progress = completed / total;
+    const filteredPacks = useMemo(() => {
+        const normalizedSearch = searchText.trim().toLowerCase();
 
-        return {
-            icon: pack.icon,
-            color: pack.color,
-            isLocked: pack.isLocked,
-            title: pack.title,
-            snippets: pack.snippets.map((snippet) => ({
-                id: snippet.id,
-                code: snippet.code,
-                answers: [],
-                correctAnswerId: snippet.correctAnswerId,
-            })),
-            difficult: pack.difficulty,
-            progress,
-        };
-    });
+        return quizPacks.filter((pack) => {
+            const matchesSearch = normalizedSearch.length === 0
+                ? true
+                : pack.title.toLowerCase().includes(normalizedSearch) ||
+                  (pack.description?.toLowerCase().includes(normalizedSearch) ?? false);
+
+            const matchesChip = filterChip === 'All'
+                ? true
+                : pack.language === filterChip || pack.tags?.includes(filterChip) === true;
+
+            return matchesSearch && matchesChip;
+        });
+    }, [searchText, filterChip]);
+
+    const exploreCards: ExploreCard[] = useMemo(() =>
+        filteredPacks.map((pack) => {
+            const progressForPack = packProgress.find((p) => p.packId === pack.id);
+            const completed = progressForPack?.completedSnippetIds.length ?? 0;
+            const total = pack.snippets.length || 1;
+            const progress = completed / total;
+
+            return {
+                id: pack.id,
+                icon: pack.icon,
+                color: pack.color,
+                isLocked: pack.isLocked,
+                title: pack.title,
+                snippets: pack.snippets.map((snippet) => ({
+                    id: snippet.id,
+                    code: snippet.code,
+                    answers: [],
+                    correctAnswerId: snippet.correctAnswerId,
+                })),
+                difficult: pack.difficulty,
+                progress,
+            };
+        }), [filteredPacks, packProgress]);
 
     const scrollHandler = useAnimatedScrollHandler((event) => {
         scrollY.value = event.contentOffset.y;
@@ -106,6 +129,7 @@ export default function ExploreScreen() {
 					alignSelf: 'center',
 				}}
                 contentContainerStyle={{
+                    flexGrow: 1,
                     paddingTop: HEADER_HEIGHT + 20,
                     paddingBottom: 80,
 					paddingHorizontal: 16
@@ -122,6 +146,16 @@ export default function ExploreScreen() {
                             onChangeChip={setFilterChip}
                         />
                     </>
+                }
+                ListEmptyComponent={
+                    <View style={[styles.emptyStateContainer, { paddingTop: HEADER_HEIGHT + 40 }]}>
+                        <IconSymbol name="magnifyingglass" size={34} color="#6b7280" />
+                        <ThemedText style={styles.emptyStateText}>
+                            {trimmedSearchText.length > 0
+                                ? `No packs found for "${trimmedSearchText}"`
+                                : 'Try adjusting your filters.'}
+                        </ThemedText>
+                    </View>
                 }
             />
         </View>
@@ -142,5 +176,16 @@ const styles = StyleSheet.create({
     animatedHeader: {
         width: '100%',
         height: '100%',
+    },
+    emptyStateContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+    },
+    emptyStateText: {
+        color: '#6b7280',
+        textAlign: 'center',
+        fontSize: 14,
+        fontWeight: '600',
     },
 });
