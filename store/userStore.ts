@@ -10,6 +10,7 @@ import {
   topicMastery,
   type Difficulty,
 } from '@/src/data/mockData';
+import { scheduleDailyReminder } from '@/src/utils/notifications';
 import { getCurrentLevelBounds, getRankNameFromLevel } from '@/src/utils/rank';
 
 export interface UserProfile {
@@ -725,6 +726,13 @@ export const useUserStore = create<UserStoreState>()(
           type: 'daily',
           title: 'Daily Challenge Completed',
           xpGained: totalDailyXp,
+        });
+
+        void scheduleDailyReminder({
+          notificationsEnabled: state.settings.notificationsEnabled,
+          lastCompletedDate: today,
+        }).catch(() => {
+          // Ignore scheduling failures to keep quiz completion responsive.
         });
 
         return { nextQuestionId: null, isSetCompleted: true };

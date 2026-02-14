@@ -1,5 +1,6 @@
 import { JetBrainsMono_400Regular, JetBrainsMono_700Bold, useFonts } from '@expo-google-fonts/jetbrains-mono';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { HeroUINativeProvider } from 'heroui-native';
@@ -10,7 +11,18 @@ import 'react-native-reanimated';
 import '../global.css';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { requestPermissions, scheduleDailyReminder } from '@/src/utils/notifications';
 import useUserStore from '@/store/userStore';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -21,6 +33,8 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const isOnboardingCompleted = useUserStore((state) => state.isOnboardingCompleted);
+  const notificationsEnabled = useUserStore((state) => state.settings.notificationsEnabled);
+  const lastCompletedDate = useUserStore((state) => state.dailyState.lastCompletedDate);
   const syncStreakIntegrity = useUserStore((state) => state.syncStreakIntegrity);
 
   const [loaded] = useFonts({
@@ -55,6 +69,24 @@ export default function RootLayout() {
       appStateListener.remove();
     };
   }, [syncStreakIntegrity]);
+
+  useEffect(() => {
+    const syncNotificationState = async () => {
+      if (notificationsEnabled) {
+        const hasPermission = await requestPermissions();
+        if (!hasPermission) return;
+        await scheduleDailyReminder({
+          notificationsEnabled,
+          lastCompletedDate,
+        });
+        return;
+      }
+
+      await Notifications.cancelAllScheduledNotificationsAsync();
+    };
+
+    void syncNotificationState();
+  }, [notificationsEnabled, lastCompletedDate]);
 
   if (!loaded) return null;
 

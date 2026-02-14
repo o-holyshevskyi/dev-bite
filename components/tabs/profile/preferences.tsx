@@ -3,6 +3,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol.ios";
 import { useUserStore } from "@/store/userStore";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from "expo-constants";
+import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { Card, useThemeColor } from "heroui-native";
 import { Alert, Pressable, StyleSheet, Switch, View } from "react-native";
@@ -67,6 +68,14 @@ const Preferences = () => {
     );
   };
 
+  const handleNotificationsToggle = (enabled: boolean) => {
+    updateSettings({ notificationsEnabled: enabled });
+
+    if (!enabled) {
+      void Notifications.cancelAllScheduledNotificationsAsync();
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Card
@@ -87,7 +96,7 @@ const Preferences = () => {
             muted={muted}
             type="switch"
             switchValue={settings.notificationsEnabled}
-            onSwitchChange={(val) => updateSettings({ notificationsEnabled: val })}
+            onSwitchChange={handleNotificationsToggle}
           />
           <PreferenceRow
             iconName="waveform"
