@@ -1,26 +1,93 @@
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol.ios";
+import { useDailyChallenge } from "@/hooks/useDailyChallenge";
+import { router } from "expo-router";
 import { Avatar, Button, Card, useThemeColor } from "heroui-native";
-import { useEffect, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { StyleSheet, View } from "react-native";
 
 const DailyChallengeCard = () => {
     const accent = useThemeColor('accent');
     const foreground = useThemeColor('foreground');
     const muted = useThemeColor('muted');
+    const danger = useThemeColor('danger');
+
+    const daily = useDailyChallenge();
+    const challengeSnippet = daily?.current?.snippet ?? null;
+    const results = daily?.results ?? [0, 0, 0];
+    const progressCount = daily?.progressCount ?? 0;
+    const isCompleted = daily?.isCompleted ?? false;
+    const currentQuestionId =
+        daily?.questionIds[daily?.currentIndex ?? 0] ?? null;
+
+    const [remainingLabel, setRemainingLabel] = useState('');
 
     const [users, setUsers] = useState<{ name: string; avatarUrl: string }[]>([]);
 
     useEffect(() => {
+        const random1 = Math.floor(Math.random() * 10);
+        const random2 = Math.floor(Math.random() * 10);
+
         setUsers([
             { name: 'Alice Brown', avatarUrl: 'https://i.pravatar.cc/300' },
             { name: 'Bob Smith', avatarUrl: 'https://i.pravatar.cc/300' },
-            { name: '2 4', avatarUrl: '' },
+            { name: `${random1 === 0 ? '' : random1} ${random2}`, avatarUrl: '' },
         ]);
     }, []);
 
+    useEffect(() => {
+        const updateRemaining = () => {
+            const now = new Date();
+            const nextMidnight = new Date(now);
+            nextMidnight.setHours(24, 0, 0, 0);
+            const diffMs = Math.max(0, nextMidnight.getTime() - now.getTime());
+            const totalSeconds = Math.floor(diffMs / 1000);
+            const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+            const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+            setRemainingLabel(`${hours}:${minutes}:${seconds}`);
+        };
+
+        updateRemaining();
+        const timer = setInterval(updateRemaining, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const ui = useMemo(() => {
+        if (isCompleted) {
+            return {
+                title: 'Daily Goals Crushed! 🎉',
+                buttonLabel: 'Review Answers',
+            };
+        }
+
+        if (progressCount > 0) {
+            return {
+                title: 'Keep going!',
+                buttonLabel: 'Continue',
+            };
+        }
+
+        return {
+            title: 'Daily Challenge',
+            buttonLabel: 'Start Challenge',
+        };
+    }, [isCompleted, progressCount]);
+
     const handleTapToSolvePress = () => {
-        Alert.alert('Tap to Solve button pressed');
+        if (isCompleted) {
+            router.push('/daily/results' as never);
+            return;
+        }
+        const targetId = currentQuestionId;
+        if (targetId) {
+            router.push({
+                pathname: '/quiz/[id]',
+                params: { id: targetId },
+            });
+        } else {
+            router.push('/modals/solve-snippet');
+        }
     }
 
     return (
@@ -40,7 +107,39 @@ const DailyChallengeCard = () => {
                         <View style={{ width: 10, height: 10, backgroundColor: accent, borderRadius: 6 }}></View>
                         <ThemedText style={[styles.cardHeaderText, { color: accent }]}>Daily Challenge</ThemedText>
                     </View>
-                    <ThemedText style={{ color: foreground, fontWeight: '600', fontSize: 24 }}>Fix the Memory Leak</ThemedText>
+                    <ThemedText style={{ color: foreground, fontWeight: '600', fontSize: 24 }}>
+                        {ui.title}
+                    </ThemedText>
+                    <View style={styles.progressDots}>
+                        {results.map((result, index) => {
+                            const backgroundColor =
+                                result === 1
+                                    ? accent
+                                    : result === 2
+                                        ? danger
+                                        : 'transparent';
+                            const borderColor =
+                                result === 0 ? muted + '90' : backgroundColor;
+
+                            return (
+                                <View
+                                    key={index}
+                                    style={[
+                                        styles.dot,
+                                        {
+                                            backgroundColor,
+                                            borderColor,
+                                        },
+                                    ]}
+                                />
+                            );
+                        })}
+                    </View>
+                    {isCompleted && (
+                        <ThemedText style={{ color: muted, marginTop: 8 }}>
+                            Next challenge in: {remainingLabel}
+                        </ThemedText>
+                    )}
                 </Card.Header>
                 <Card.Body style={{ marginBottom: 18 }}>
                     <View style={{ 
@@ -49,11 +148,11 @@ const DailyChallengeCard = () => {
                             borderRadius: 8, 
                             borderStartWidth: 2, 
                             borderColor: accent, 
-                            width: '75%'
+                            width: '80%'
                         }}
                     >
-                        <ThemedText style={{ color: muted, fontSize: 16, lineHeight: 22 }}>
-                            void *ptr = malloc(512);
+                        <ThemedText style={{ color: muted, fontSize: 16, lineHeight: 22, fontFamily: 'JetBrainsMono_400Regular' }}>
+                            {challengeSnippet?.code ?? 'void *ptr = malloc(512);'}
                         </ThemedText>
                     </View>
                 </Card.Body>
@@ -71,17 +170,17 @@ const DailyChallengeCard = () => {
                                     <Avatar.Fallback>+{user.name.split(' ').map(n => n[0]).join('')}</Avatar.Fallback>
                                 </Avatar>
                             ))}
-                            <ThemedText numberOfLines={2} style={{ 
+                            {/* <ThemedText numberOfLines={2} style={{ 
                                 color: muted, 
                                 lineHeight: 18, 
                                 width: 80 
                             }}>
                                 Solvers today
-                            </ThemedText>
+                            </ThemedText> */}
                         </View>
-                        <Button size="md" variant="primary" onPress={handleTapToSolvePress}>
+                        <Button size="sm" variant="primary" onPress={handleTapToSolvePress}>
                             <ThemedText style={{ color: foreground, fontWeight: '600', textTransform: 'uppercase' }}>
-                                Tap to Solve
+                                {ui.buttonLabel}
                             </ThemedText>
                             <IconSymbol name="chevron.forward" size={12} color={foreground} />
                         </Button>
@@ -107,7 +206,18 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '800',
         textTransform: 'uppercase',
-    }
+    },
+    progressDots: {
+        flexDirection: 'row',
+        gap: 8,
+        marginTop: 10,
+    },
+    dot: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        borderWidth: 1.5,
+    },
 });
 
 export default DailyChallengeCard;

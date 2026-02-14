@@ -1,18 +1,16 @@
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol.ios";
-import useUserStore from "@/store/userStore";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format } from "date-fns";
-import { Button, Chip, useThemeColor } from "heroui-native";
+import { Button, useThemeColor } from "heroui-native";
 import { useEffect, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 
 const Header = () => {
     const foreground = useThemeColor('foreground');
     const muted = useThemeColor('muted');
-    const profile = useUserStore((state) => state.profile);
 
     const [date, setDate] = useState<string>('');
+    const [username, setUsername] = useState<string>('');
 
     useEffect(() => {
         const currentDate = new Date();
@@ -20,34 +18,19 @@ const Header = () => {
         setDate(formattedDate);
     }, []);
 
+    useEffect(() => {
+        setUsername('Alex');
+    }, []);
+
     return (
         <View style={[styles.headerContainer, { borderBottomColor: muted + '60', borderBottomWidth: 1 }]}>
             <View>
-                <ThemedText style={[styles.headerDateText, { color: muted }]}>{date}</ThemedText>
-                <ThemedText style={[styles.headerGreetingText, { color: foreground }]}>Good Morning, {profile.name}</ThemedText>
-                <Button size="sm" variant="secondary" isIconOnly onPress={() => {
-                    AsyncStorage.removeItem('user-store');
-                }}>
-                    <Button.Label>Logout</Button.Label>
-                </Button>
+                <ThemedText style={[styles.headerTitleText, { color: foreground }]}>Profile</ThemedText>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <StreakChip />
                 <SettingsButtonIcon />
             </View>
         </View>
-    );
-}
-
-export const StreakChip = () => {
-    const accent = useThemeColor('accent');
-    const muted = useThemeColor('muted');
-
-    return (
-        <Chip size="lg" style={[styles.streakChip, { height: 32, borderColor: muted + '80', backgroundColor: accent + '60' }]}>
-            <IconSymbol name="flame" size={18} color={'orange'} style={{ marginRight: 2 }} />
-            <ThemedText style={[styles.streakChipText, { color: accent }]}>12</ThemedText>
-        </Chip>
     );
 }
 
@@ -72,12 +55,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
     },
-    headerDateText: {
-        fontSize: 14,
-        fontWeight: '800',
-        textTransform: 'uppercase',
-    },
-    headerGreetingText: {
+    headerTitleText: {
         fontSize: 24,
         fontWeight: '800',
         marginTop: 4,

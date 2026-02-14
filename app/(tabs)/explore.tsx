@@ -1,112 +1,146 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { ExploreCardItem } from '@/components/tabs/explore/explore-cards';
+import FilterChips from '@/components/tabs/explore/filter-chips';
+import Header from '@/components/tabs/explore/header';
+import SearchBar from '@/components/tabs/explore/search-bar';
+import { useState } from 'react';
+import { ListRenderItem, StyleSheet, View } from 'react-native';
+import Animated, {
+    Extrapolation,
+    interpolate,
+    useAnimatedScrollHandler,
+    useAnimatedStyle,
+    useSharedValue
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { quizPacks } from '@/src/data/mockData';
+import useUserStore from '@/store/userStore';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+interface Snippet {
+    id: string,
+    code: string,
+    answers: [],
+    correctAnswerId: string,
+}
 
-export default function TabTwoScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
-  );
+export interface ExploreCard {
+    icon: string;
+	color: string;
+    isLocked: boolean;
+    title: string;
+    snippets: Snippet[];
+    difficult: 'easy' | 'medium' | 'hard'
+    progress: number;
+}
+
+export default function ExploreScreen() {
+    const scrollY = useSharedValue(0);
+    const insets = useSafeAreaInsets();
+    const packProgress = useUserStore((state) => state.packProgress);
+
+    const HEADER_HEIGHT = 60 + insets.top;
+
+    const [searchText, setSearchText] = useState('');
+    const [filterChip, setFilterChip] = useState('All');
+
+    const exploreCards: ExploreCard[] = quizPacks.map((pack) => {
+        const progressForPack = packProgress.find((p) => p.packId === pack.id);
+        const completed = progressForPack?.completedSnippetIds.length ?? 0;
+        const total = pack.snippets.length || 1;
+        const progress = completed / total;
+
+        return {
+            icon: pack.icon,
+            color: pack.color,
+            isLocked: pack.isLocked,
+            title: pack.title,
+            snippets: pack.snippets.map((snippet) => ({
+                id: snippet.id,
+                code: snippet.code,
+                answers: [],
+                correctAnswerId: snippet.correctAnswerId,
+            })),
+            difficult: pack.difficulty,
+            progress,
+        };
+    });
+
+    const scrollHandler = useAnimatedScrollHandler((event) => {
+        scrollY.value = event.contentOffset.y;
+    });
+
+    const headerAnimatedStyle = useAnimatedStyle(() => {
+        const opacity = interpolate(scrollY.value, [0, 80], [1, 0], Extrapolation.CLAMP);
+        const translateY = interpolate(scrollY.value, [0, 80], [0, -HEADER_HEIGHT], Extrapolation.CLAMP);
+
+        return {
+            opacity,
+            transform: [{ translateY }],
+        };
+    });
+
+    const renderItem: ListRenderItem<ExploreCard> = ({ item }) => (
+        <ExploreCardItem card={item} />
+    );
+
+    return (
+        <View style={[styles.container, { backgroundColor: '#000' }]}>
+            <View style={[styles.headerContainer, { height: HEADER_HEIGHT }]} pointerEvents="box-none">
+                <Animated.View style={[styles.animatedHeader, headerAnimatedStyle]}>
+                    <View style={{ paddingTop: insets.top }}>
+                        <Header />
+                    </View>
+                </Animated.View>
+            </View>
+
+            <Animated.FlatList<ExploreCard>
+                data={exploreCards}
+                keyExtractor={(item, index) => `${item.title}-${index}`}
+                renderItem={renderItem}
+                showsVerticalScrollIndicator={false}
+                onScroll={scrollHandler}
+                scrollEventThrottle={16}
+				numColumns={2}
+				columnWrapperStyle={{
+					gap: 20,
+					paddingVertical: 7,
+					alignSelf: 'center',
+				}}
+                contentContainerStyle={{
+                    paddingTop: HEADER_HEIGHT + 20,
+                    paddingBottom: 80,
+					paddingHorizontal: 16
+                }}
+                ListHeaderComponent={
+                    <>
+                        <SearchBar
+                            value={searchText}
+                            onChangeText={setSearchText}
+                            onClearText={() => setSearchText('')}
+                        />
+                        <FilterChips
+                            chip={filterChip}
+                            onChangeChip={setFilterChip}
+                        />
+                    </>
+                }
+            />
+        </View>
+    );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+    container: {
+        flex: 1,
+    },
+    headerContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+    },
+    animatedHeader: {
+        width: '100%',
+        height: '100%',
+    },
 });
