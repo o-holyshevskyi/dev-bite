@@ -39,6 +39,7 @@ export default function ExploreScreen() {
     const scrollY = useSharedValue(0);
     const insets = useSafeAreaInsets();
     const packProgress = useUserStore((state) => state.packProgress);
+    const isPro = useUserStore((state) => state.isPro);
 
     const HEADER_HEIGHT = 60 + insets.top;
 
@@ -74,7 +75,7 @@ export default function ExploreScreen() {
                 id: pack.id,
                 icon: pack.icon,
                 color: pack.color,
-                isLocked: pack.isLocked,
+                isLocked: pack.isLocked && !isPro,
                 title: pack.title,
                 snippets: pack.snippets.map((snippet) => ({
                     id: snippet.id,
@@ -85,7 +86,7 @@ export default function ExploreScreen() {
                 difficult: pack.difficulty,
                 progress,
             };
-        }), [filteredPacks, packProgress]);
+        }), [filteredPacks, isPro, packProgress]);
 
     const scrollHandler = useAnimatedScrollHandler((event) => {
         scrollY.value = event.contentOffset.y;

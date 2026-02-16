@@ -1,10 +1,11 @@
 import { ExploreCard } from "@/app/(tabs)/explore";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol.ios";
+import useUserStore from "@/store/userStore";
 import { useRouter } from "expo-router";
 import { Card, useThemeColor } from "heroui-native";
 import { useEffect } from "react";
-import { Alert, Dimensions, Pressable, View } from "react-native";
+import { Dimensions, Pressable, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 const WIDTH = Dimensions.get('screen').width / 2.3;
@@ -15,6 +16,7 @@ interface ExploreCardProps {
 
 export const ExploreCardItem = ({ card }: ExploreCardProps) => {
     const router = useRouter();
+    const isPro = useUserStore((state) => state.isPro);
     const foreground = useThemeColor('foreground');
     const muted = useThemeColor('muted');
     const accent = useThemeColor('accent');
@@ -54,8 +56,8 @@ export const ExploreCardItem = ({ card }: ExploreCardProps) => {
     const handlePress = () => {
         resetScale();
 
-        if (card.isLocked) {
-            Alert.alert("Premium Content", "Unlock DevBite Pro to access this pack and level up your skills!");
+        if (card.isLocked && !isPro) {
+            router.push('/paywall');
             return;
         }
 
@@ -78,7 +80,7 @@ export const ExploreCardItem = ({ card }: ExploreCardProps) => {
                     <View style={{ backgroundColor: card.color + '40', borderRadius: 9999, width: 50, height: 50, alignItems: 'center', justifyContent: 'center' }}>
                         <IconSymbol name={card.icon as any} size={28} color={card.color} />
                     </View>
-                    {card.isLocked && <IconSymbol name={'lock.fill'} size={24} color={muted + '80'} />}
+                    {card.isLocked && !isPro && <IconSymbol name={'lock.fill'} size={24} color={muted + '80'} />}
                 </Card.Header>
                 <Card.Body style={{ marginTop: 12, minHeight: 75 }}>
                     <ThemedText

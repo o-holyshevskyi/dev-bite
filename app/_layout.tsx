@@ -113,6 +113,10 @@ export default function RootLayout() {
               name="badges"
               options={{ headerShown: false }}
             />
+            <Stack.Screen
+              name="paywall"
+              options={{ headerShown: false, presentation: 'modal' }}
+            />
             <Stack.Screen name="modals" options={{ headerShown: false,presentation: 'modal' }} />
           </Stack>
           <StatusBar style="auto" />

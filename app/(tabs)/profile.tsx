@@ -29,6 +29,8 @@ export default function ProfileScreen() {
   const foreground = useThemeColor('foreground');
   const muted = useThemeColor('muted');
   const accent = useThemeColor('accent');
+  const success = useThemeColor('success');
+  const isPro = useUserStore((s) => s.isPro);
   const [isAchievementDialogOpen, setIsAchievementDialogOpen] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [dialogBadges, setDialogBadges] = useState<typeof unlockedBadges>([]);
@@ -99,7 +101,16 @@ export default function ProfileScreen() {
         <Level />
         <Stats />
         <Badges />
-        <UpgradeCta />
+        {isPro ? (
+          <View style={[styles.proBadgeRow, { borderColor: success + '40', backgroundColor: success + '14' }]}>
+            <IconSymbol name="checkmark.seal.fill" size={16} color={success} />
+            <ThemedText style={[styles.proBadgeText, { color: foreground }]}>
+              You are a PRO member
+            </ThemedText>
+          </View>
+        ) : (
+          <UpgradeCta />
+        )}
         <Preferences />
       </Animated.ScrollView>
 
@@ -219,5 +230,21 @@ const styles = StyleSheet.create({
   badgeDescription: {
     fontSize: 12,
     marginTop: 2,
+  },
+  proBadgeRow: {
+    marginTop: 32,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  proBadgeText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

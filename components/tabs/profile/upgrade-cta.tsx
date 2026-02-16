@@ -1,7 +1,7 @@
 import { ThemedText } from "@/components/themed-text";
 import { useRouter } from "expo-router";
 import { Button, useThemeColor } from "heroui-native";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -19,14 +19,12 @@ const UpgradeCta = () => {
   }));
 
   const handleUpgradePress = () => {
-    void router;
-    Alert.alert("Coming Soon", "Pro upgrade is coming soon.");
+    router.push('/paywall');
   };
 
   return (
     <View style={styles.container}>
       <Pressable
-        onPress={handleUpgradePress}
         onPressIn={() => {
           scale.value = withSpring(0.97);
         }}
@@ -37,6 +35,7 @@ const UpgradeCta = () => {
         <Animated.View style={animatedStyle}>
           <Button
             size="lg"
+            onPress={handleUpgradePress}
             style={[
               styles.button,
               {

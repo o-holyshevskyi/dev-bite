@@ -242,6 +242,7 @@ export interface UserStoreState {
   rank: typeof initialRank;
   topicMastery: typeof topicMastery;
   packProgress: PackProgress[];
+  isPro: boolean;
   isOnboardingCompleted: boolean;
   selectedStack: string[];
   difficulty: string;
@@ -268,6 +269,7 @@ export interface UserStoreState {
   updateSettings: (newSettings: Partial<UserState['settings']>) => void;
   setStack: (stack: string[]) => void;
   setDifficulty: (difficulty: string) => void;
+  unlockPro: () => void;
   completeOnboarding: () => void;
   markSnippetCompleted: (
     packId: string,
@@ -314,6 +316,7 @@ function createInitialUserData(): Pick<
   | 'rank'
   | 'topicMastery'
   | 'packProgress'
+  | 'isPro'
   | 'isOnboardingCompleted'
   | 'selectedStack'
   | 'difficulty'
@@ -340,6 +343,7 @@ function createInitialUserData(): Pick<
     rank: { ...initialRank },
     topicMastery: cloneTopicMasteryDefaults(),
     packProgress: ensurePackProgressEntries([]),
+    isPro: false,
     isOnboardingCompleted: false,
     selectedStack: [],
     difficulty: '',
@@ -430,6 +434,10 @@ export const useUserStore = create<UserStoreState>()(
             currentIndex: 0,
             lastGeneratedDate: null,
           },
+        })),
+      unlockPro: () =>
+        set(() => ({
+          isPro: true,
         })),
       completeOnboarding: () =>
         set(() => ({
@@ -799,10 +807,12 @@ export const useUserStore = create<UserStoreState>()(
             theme: 'dark',
             ...(state.settings ?? {}),
           },
+          isPro: state.isPro ?? false,
         } as UserStoreState;
       },
       partialize: (state) => ({
         profile: state.profile,
+        isPro: state.isPro,
         isOnboardingCompleted: state.isOnboardingCompleted,
         selectedStack: state.selectedStack,
         difficulty: state.difficulty,
