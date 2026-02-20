@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import '../global.css';
 
+import { LevelCompleteModal } from '@/components/path/level-complete-modal';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { requestPermissions, scheduleDailyReminder } from '@/src/utils/notifications';
 import useUserStore from '@/store/userStore';
@@ -36,6 +37,8 @@ export default function RootLayout() {
   const notificationsEnabled = useUserStore((state) => state.settings.notificationsEnabled);
   const lastCompletedDate = useUserStore((state) => state.dailyState.lastCompletedDate);
   const syncStreakIntegrity = useUserStore((state) => state.syncStreakIntegrity);
+  const levelJustCompleted = useUserStore((state) => state.levelJustCompleted);
+  const setLevelJustCompleted = useUserStore((state) => state.setLevelJustCompleted);
 
   const [loaded] = useFonts({
     JetBrainsMono_400Regular,
@@ -101,6 +104,10 @@ export default function RootLayout() {
         }}
       >
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <LevelCompleteModal
+            level={levelJustCompleted}
+            onDismiss={() => setLevelJustCompleted(null)}
+          />
           <Stack>
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

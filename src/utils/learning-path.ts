@@ -28,7 +28,7 @@ function getChapterPacks(category: string, difficulty: Difficulty) {
   );
 }
 
-function getChapterProgressRatio(
+export function getChapterProgressRatio(
   category: string,
   difficulty: Difficulty,
   packProgress: LearningPathPackProgress[],
@@ -90,4 +90,51 @@ export function getCurrentLearningPacks(
   return quizPacks.filter((pack) =>
     isPackInCurrentLearningLevel(pack.id, packProgress),
   );
+}
+
+export type LevelPerformanceSummary = {
+  category: string;
+  difficulty: Difficulty;
+  total: number;
+  completed: number;
+  incorrect: number;
+  accuracyPercent: number;
+};
+
+/** Aggregates completion and accuracy for a chapter (category + difficulty). */
+export function getLevelPerformance(
+  category: string,
+  difficulty: Difficulty,
+  packProgress: Array<{ packId: string; completedSnippetIds: string[]; incorrectSnippetIds: string[] }>,
+): LevelPerformanceSummary {
+  const chapterPacks = getChapterPacks(category, difficulty);
+  const snippetIds = new Set(
+    chapterPacks.flatMap((pack) => pack.snippets.map((s) => s.id)),
+  );
+  const total = snippetIds.size;
+  const completed = new Set<string>();
+  const incorrect = new Set<string>();
+  for (const pack of chapterPacks) {
+    const entry = packProgress.find((e) => e.packId === pack.id);
+    if (!entry) continue;
+    for (const id of entry.completedSnippetIds ?? []) {
+      if (snippetIds.has(id)) completed.add(id);
+    }
+    for (const id of entry.incorrectSnippetIds ?? []) {
+      if (snippetIds.has(id)) incorrect.add(id);
+    }
+  }
+  const attempted = completed.size + incorrect.size;
+  const accuracyPercent =
+    attempted > 0
+      ? Math.round((completed.size / Math.max(1, completed.size + incorrect.size)) * 100)
+      : 100;
+  return {
+    category,
+    difficulty,
+    total,
+    completed: completed.size,
+    incorrect: incorrect.size,
+    accuracyPercent,
+  };
 }

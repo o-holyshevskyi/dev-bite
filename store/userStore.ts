@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import {
   getAllSnippets,
+  getPackById,
   getSnippetWithPackById,
   initialRank,
   quizPacks,
@@ -11,6 +12,7 @@ import {
   type Difficulty,
 } from '@/src/data/mockData';
 import {
+  getChapterProgressRatio,
   getCurrentDifficultyForCategory,
   isPackInCurrentLearningLevel,
 } from '@/src/utils/learning-path';
@@ -494,9 +496,12 @@ export interface UserStoreState {
   dailyState: DailyState;
   activityLog: ActivityEntry[];
   masteryInsight: MasteryInsight;
+  /** Set when a level (category + difficulty) just reached 100%; clear when modal is dismissed. */
+  levelJustCompleted: { category: string; difficulty: string } | null;
   shownAchievementBadgeIds: string[];
   settings: UserSettings;
   resetStore: () => void;
+  setLevelJustCompleted: (value: { category: string; difficulty: string } | null) => void;
   setName: (name: string) => void;
   setTitle: (title: string) => void;
   setAvatarUrl: (avatarUrl: string | null) => void;
@@ -570,6 +575,7 @@ function createInitialUserData(): Pick<
   | 'dailyState'
   | 'activityLog'
   | 'masteryInsight'
+  | 'levelJustCompleted'
   | 'shownAchievementBadgeIds'
 > {
   const packProgress = ensurePackProgressEntries([]);
@@ -603,6 +609,7 @@ function createInitialUserData(): Pick<
     dailyState: createInitialDailyState(),
     activityLog: [],
     masteryInsight: buildMasteryInsight([], packProgress),
+    levelJustCompleted: null,
     shownAchievementBadgeIds: [],
   };
 }
@@ -615,6 +622,8 @@ export const useUserStore = create<UserStoreState>()(
         set(() => ({
           ...createInitialUserData(),
         })),
+      setLevelJustCompleted: (value) =>
+        set(() => ({ levelJustCompleted: value })),
       setName: (name: string) =>
         set((state) => ({
           profile: {
@@ -765,6 +774,20 @@ export const useUserStore = create<UserStoreState>()(
             ? getNormalizedRankFromXp(state.rank, state.rank.xp + practiceXpGain)
             : state.rank;
 
+        let levelJustCompleted: { category: string; difficulty: string } | null = null;
+        if (isCurrentLearningLevel) {
+          const pack = getPackById(packId);
+          if (pack) {
+            const category = pack.category ?? pack.language;
+            const difficulty = pack.difficulty;
+            const beforeRatio = getChapterProgressRatio(category, difficulty, baseProgress);
+            const afterRatio = getChapterProgressRatio(category, difficulty, updatedPackProgress);
+            if (beforeRatio < 1 && afterRatio >= 1) {
+              levelJustCompleted = { category, difficulty };
+            }
+          }
+        }
+
         set({
           rank: nextRank,
           stats: {
@@ -774,6 +797,7 @@ export const useUserStore = create<UserStoreState>()(
           },
           packProgress: updatedPackProgress,
           masteryInsight: buildMasteryInsight(state.activityLog, updatedPackProgress),
+          levelJustCompleted: levelJustCompleted ?? state.levelJustCompleted,
         });
 
         get().logActivity({
@@ -1020,6 +1044,20 @@ export const useUserStore = create<UserStoreState>()(
         });
         const activityLogWithCurrentEntry = get().activityLog;
 
+        let levelJustCompleted: { category: string; difficulty: string } | null = null;
+        if (packId && isCurrentLearningLevel) {
+          const pack = getPackById(packId);
+          if (pack) {
+            const category = pack.category ?? pack.language;
+            const difficulty = pack.difficulty;
+            const beforeRatio = getChapterProgressRatio(category, difficulty, normalizedPackProgress);
+            const afterRatio = getChapterProgressRatio(category, difficulty, nextPackProgress);
+            if (beforeRatio < 1 && afterRatio >= 1) {
+              levelJustCompleted = { category, difficulty };
+            }
+          }
+        }
+
         if (!completed) {
           set({
             rank,
@@ -1030,6 +1068,7 @@ export const useUserStore = create<UserStoreState>()(
               activityLogWithCurrentEntry,
               nextPackProgress,
             ),
+            levelJustCompleted: levelJustCompleted ?? state.levelJustCompleted,
             stats: {
               ...state.stats,
               solved: nextSolved,
@@ -1070,6 +1109,7 @@ export const useUserStore = create<UserStoreState>()(
             activityLogWithCurrentEntry,
             nextPackProgress,
           ),
+          levelJustCompleted: levelJustCompleted ?? state.levelJustCompleted,
           stats: {
             ...state.stats,
             solved: nextSolved,
