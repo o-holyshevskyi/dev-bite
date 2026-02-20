@@ -1212,7 +1212,7 @@ export const useUserStore = create<UserStoreState>()(
           ),
           shownAchievementBadgeIds: state.shownAchievementBadgeIds ?? [],
           settings: (() => {
-            const prev = state.settings ?? {};
+            const prev = (state.settings ?? {}) as Partial<UserSettings>;
             const legacy = prev.themeName ?? prev.theme;
             const { colorMode, themePalette } =
               typeof legacy === 'string'
