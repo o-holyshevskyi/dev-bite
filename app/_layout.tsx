@@ -5,6 +5,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { HeroUINativeProvider } from 'heroui-native';
 import { useEffect } from 'react';
+import { Uniwind } from 'uniwind';
 import { AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
@@ -13,6 +14,7 @@ import '../global.css';
 import { LevelCompleteModal } from '@/components/path/level-complete-modal';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { requestPermissions, scheduleDailyReminder } from '@/src/utils/notifications';
+import { getEffectiveTheme } from '@/src/utils/theme';
 import useUserStore from '@/store/userStore';
 
 Notifications.setNotificationHandler({
@@ -34,7 +36,10 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const isOnboardingCompleted = useUserStore((state) => state.isOnboardingCompleted);
+  const colorMode = useUserStore((state) => state.settings.colorMode);
+  const themePalette = useUserStore((state) => state.settings.themePalette);
   const notificationsEnabled = useUserStore((state) => state.settings.notificationsEnabled);
+  const effectiveTheme = getEffectiveTheme(colorMode, themePalette);
   const lastCompletedDate = useUserStore((state) => state.dailyState.lastCompletedDate);
   const syncStreakIntegrity = useUserStore((state) => state.syncStreakIntegrity);
   const levelJustCompleted = useUserStore((state) => state.levelJustCompleted);
@@ -72,6 +77,10 @@ export default function RootLayout() {
       appStateListener.remove();
     };
   }, [syncStreakIntegrity]);
+
+  useEffect(() => {
+    Uniwind.setTheme(effectiveTheme);
+  }, [effectiveTheme]);
 
   useEffect(() => {
     const syncNotificationState = async () => {

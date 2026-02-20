@@ -2,7 +2,7 @@ import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol.ios";
 import { useRouter } from "expo-router";
 import { Button, Card, Chip, useThemeColor } from "heroui-native";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import Animated, {
@@ -12,8 +12,10 @@ import Animated, {
     withSpring,
     withTiming
 } from "react-native-reanimated";
+import { getContrastSafePackColor } from "@/src/utils/color";
 import { getCurrentLearningPacks } from "@/src/utils/learning-path";
 import useUserStore from "@/store/userStore";
+import { useUniwind } from "uniwind";
 
 const RecentPacksCard = () => {
     const router = useRouter();
@@ -107,6 +109,9 @@ type PackItem = {
     progress: number;
 };
 
+const isLightTheme = (theme: string) =>
+    theme === 'light' || theme === 'ocean-light' || theme === 'mint-light';
+
 const PackItemCard = ({
     pack,
     accent,
@@ -120,6 +125,11 @@ const PackItemCard = ({
     foreground: string;
     onPress: (packId: string) => void;
 }) => {
+    const { theme } = useUniwind();
+    const packColor = useMemo(
+        () => getContrastSafePackColor(pack.color, isLightTheme(theme)),
+        [pack.color, theme],
+    );
     const pressScale = useSharedValue(1);
     const progressWidth = useSharedValue(0);
 
@@ -155,13 +165,13 @@ const PackItemCard = ({
             <Animated.View style={pressAnimatedStyle}>
                 <Card style={[styles.statCard, { backgroundColor: accent + '20', borderWidth: 1, borderColor: accent + '40' }]}>
                     <Card.Header style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <View style={[styles.stateIconContainer, { backgroundColor: pack.color + '40' }]}>
-                            <IconSymbol name={pack.icon as any} size={22} color={pack.color} />
+                        <View style={[styles.stateIconContainer, { backgroundColor: packColor + '40' }]}>
+                            <IconSymbol name={pack.icon as any} size={22} color={packColor} />
                         </View>
                         <StatusChip
                             status={pack.status}
                             icon={pack.status === 'In Progress' ? 'hourglass' : pack.status === 'Completed' ? 'checkmark.circle.fill' : 'circle'}
-                            color={pack.color}
+                            color={packColor}
                         />
                     </Card.Header>
                     <Card.Body style={{ justifyContent: 'flex-start', alignItems: 'flex-start' }}>
@@ -171,12 +181,12 @@ const PackItemCard = ({
                         </ThemedText>
                     </Card.Body>
                     <Card.Footer style={{ marginTop: 12 }}>
-                        <View style={{ height: 5, backgroundColor: pack.color + '40', borderRadius: 9999 }}>
+                        <View style={{ height: 5, backgroundColor: packColor + '40', borderRadius: 9999 }}>
                             <Animated.View
                                 style={[
                                     {
                                         height: '100%',
-                                        backgroundColor: pack.color,
+                                        backgroundColor: packColor,
                                         borderRadius: 9999,
                                     },
                                     progressAnimatedStyle,

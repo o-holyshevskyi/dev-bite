@@ -2,9 +2,12 @@ import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol.ios';
 import { getChapterSnippetSession, quizPacks } from '@/src/data/mockData';
 import useUserStore from '@/store/userStore';
+import { getContrastSafePackColor } from '@/src/utils/color';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button, Card, useThemeColor } from 'heroui-native';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useUniwind } from 'uniwind';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,11 +20,19 @@ export default function PackDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  const background = useThemeColor('background');
   const foreground = useThemeColor('foreground');
   const muted = useThemeColor('muted');
   const accent = useThemeColor('accent');
   const success = useThemeColor('success');
   const danger = useThemeColor('danger');
+  const { theme } = useUniwind();
+  const isLightTheme =
+    theme === 'light' || theme === 'ocean-light' || theme === 'mint-light';
+  const packColor = useMemo(
+    () => (pack ? getContrastSafePackColor(pack.color, isLightTheme) : accent),
+    [pack?.color, isLightTheme, accent],
+  );
 
   const packId = typeof id === 'string' ? id : '';
   const pack = quizPacks.find((item) => item.id === packId);
@@ -31,7 +42,7 @@ export default function PackDetailScreen() {
 
   if (!pack) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
+      <View style={[styles.container, { backgroundColor: background, paddingTop: insets.top + 16 }]}>
         <View style={styles.notFoundContent}>
           <ThemedText style={[styles.notFoundTitle, { color: foreground }]}>
             Pack not found
@@ -73,7 +84,7 @@ export default function PackDetailScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: background }]}>
       <View style={[styles.topBar, { paddingTop: insets.top / 2.5 }]}>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <IconSymbol name="chevron.left" size={20} color={foreground} />
@@ -88,19 +99,19 @@ export default function PackDetailScreen() {
           { paddingBottom: 110 + insets.bottom },
         ]}
       >
-        <Card style={[styles.heroCard, { borderColor: pack.color + '40' }]}>
+        <Card style={[styles.heroCard, { borderColor: packColor + '40' }]}>
           <Card.Header>
             <View style={styles.heroHeaderRow}>
               <View
                 style={[
                   styles.iconContainer,
-                  { backgroundColor: pack.color + '30', borderColor: pack.color + '55' },
+                  { backgroundColor: packColor + '30', borderColor: packColor + '55' },
                 ]}
               >
-                <IconSymbol name={pack.icon as any} size={30} color={pack.color} />
+                <IconSymbol name={pack.icon as any} size={30} color={packColor} />
               </View>
-              <View style={[styles.levelBadge, { borderColor: pack.color + '70', backgroundColor: pack.color + '20' }]}>
-                <ThemedText style={[styles.levelBadgeText, { color: pack.color }]}>
+              <View style={[styles.levelBadge, { borderColor: packColor + '70', backgroundColor: packColor + '20' }]}>
+                <ThemedText style={[styles.levelBadgeText, { color: packColor }]}>
                   {pack.difficulty.toUpperCase()}
                 </ThemedText>
               </View>
@@ -119,15 +130,15 @@ export default function PackDetailScreen() {
               <ThemedText style={[styles.progressLabel, { color: muted }]}>
                 Progress
               </ThemedText>
-              <ThemedText style={[styles.progressValue, { color: pack.color }]}>
+              <ThemedText style={[styles.progressValue, { color: packColor }]}>
                 {completionPercent}% completed
               </ThemedText>
             </View>
-            <View style={[styles.progressTrack, { backgroundColor: pack.color + '30' }]}>
+            <View style={[styles.progressTrack, { backgroundColor: packColor + '30' }]}>
               <View
                 style={[
                   styles.progressFill,
-                  { width: `${completionPercent}%`, backgroundColor: pack.color },
+                  { width: `${completionPercent}%`, backgroundColor: packColor },
                 ]}
               />
             </View>
@@ -229,7 +240,6 @@ export default function PackDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   topBar: {
     paddingHorizontal: 16,

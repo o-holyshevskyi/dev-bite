@@ -4,8 +4,275 @@
 
 @source './node_modules/heroui-native/lib';
 
+/*
+  Master variable list (Uniwind requires every @variant to define the same set):
+  --background, --foreground
+  --surface, --surface-foreground
+  --overlay, --overlay-foreground
+  --muted
+  --default, --default-foreground
+  --accent, --accent-foreground
+  --field-background, --field-foreground, --field-placeholder, --field-border
+  --success, --success-foreground
+  --warning, --warning-foreground
+  --danger, --danger-foreground
+  --segment, --segment-foreground
+  --border, --separator
+  --focus, --link
+  --surface-shadow, --overlay-shadow, --field-shadow
+*/
 @layer theme {
-    :root {
-        --danger: oklch(0.68 0.18 15);
+  :root {
+    @variant light {
+      --background: oklch(0.9702 0 0);
+      --foreground: var(--eclipse);
+      --surface: var(--white);
+      --surface-foreground: var(--foreground);
+      --overlay: var(--white);
+      --overlay-foreground: var(--foreground);
+      --muted: oklch(0.5517 0.0138 285.94);
+      --default: oklch(94% 0.001 286.375);
+      --default-foreground: var(--eclipse);
+      --accent: oklch(0.6204 0.195 253.83);
+      --accent-foreground: var(--snow);
+      --field-background: var(--white);
+      --field-foreground: oklch(0.2103 0.0059 285.89);
+      --field-placeholder: var(--muted);
+      --field-border: transparent;
+      --success: oklch(0.7329 0.1935 150.81);
+      --success-foreground: var(--eclipse);
+      --warning: oklch(0.7819 0.1585 72.33);
+      --warning-foreground: var(--eclipse);
+      --danger: oklch(0.6532 0.2328 25.74);
+      --danger-foreground: var(--snow);
+      --segment: var(--white);
+      --segment-foreground: var(--eclipse);
+      --border: oklch(90% 0.004 286.32);
+      --separator: oklch(74% 0.004 286.32);
+      --focus: var(--accent);
+      --link: var(--foreground);
+      --surface-shadow:
+        0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+        0 0 1px 0 rgba(0, 0, 0, 0.06);
+      --overlay-shadow:
+        0 2px 8px 0 rgba(0, 0, 0, 0.04), 0 -6px 12px 0 rgba(0, 0, 0, 0.02),
+        0 14px 28px 0 rgba(0, 0, 0, 0.06);
+      --field-shadow:
+        0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+        0 0 1px 0 rgba(0, 0, 0, 0.06);
     }
+
+    @variant dark {
+      --background: oklch(12% 0.005 285.823);
+      --foreground: var(--snow);
+      --surface: oklch(0.2103 0.0059 285.89);
+      --surface-foreground: var(--foreground);
+      --overlay: oklch(0.2103 0.0059 285.89);
+      --overlay-foreground: var(--foreground);
+      --muted: oklch(70.5% 0.015 286.067);
+      --default: oklch(27.4% 0.006 286.033);
+      --default-foreground: var(--snow);
+      --accent: oklch(0.6204 0.195 253.83);
+      --accent-foreground: var(--snow);
+      --field-background: oklch(0.2103 0.0059 285.89);
+      --field-foreground: var(--foreground);
+      --field-placeholder: var(--muted);
+      --field-border: transparent;
+      --success: oklch(0.7329 0.1935 150.81);
+      --success-foreground: var(--eclipse);
+      --warning: oklch(0.8203 0.1388 76.34);
+      --warning-foreground: var(--eclipse);
+      --danger: oklch(0.594 0.1967 24.63);
+      --danger-foreground: var(--snow);
+      --segment: oklch(0.3964 0.01 285.93);
+      --segment-foreground: var(--foreground);
+      --border: oklch(28% 0.006 286.033);
+      --separator: oklch(40% 0.006 286.033);
+      --focus: var(--accent);
+      --link: var(--foreground);
+      --surface-shadow: 0 0 0 0 transparent inset;
+      --overlay-shadow: 0 0 1px 0 rgba(255, 255, 255, 0.3) inset;
+      --field-shadow: 0 0 0 0 transparent inset;
+    }
+
+    /* Ocean: blues/teals, hue 200–210, consistent L/C across light/dark for unified feel */
+    @variant ocean-light {
+      --background: oklch(0.965 0.012 210);
+      --foreground: oklch(0.24 0.028 245);
+      --surface: oklch(0.99 0.008 208);
+      --surface-foreground: var(--foreground);
+      --overlay: oklch(0.99 0.008 208);
+      --overlay-foreground: var(--foreground);
+      --muted: oklch(0.52 0.032 228);
+      --default: oklch(0.92 0.018 212);
+      --default-foreground: var(--foreground);
+      --accent: oklch(0.52 0.16 238);
+      --accent-foreground: oklch(0.99 0 0);
+      --field-background: oklch(0.99 0.008 208);
+      --field-foreground: oklch(0.24 0.028 245);
+      --field-placeholder: var(--muted);
+      --field-border: transparent;
+      --success: oklch(0.7329 0.1935 150.81);
+      --success-foreground: var(--eclipse);
+      --warning: oklch(0.7819 0.1585 72.33);
+      --warning-foreground: var(--eclipse);
+      --danger: oklch(0.6532 0.2328 25.74);
+      --danger-foreground: var(--snow);
+      --segment: oklch(0.99 0.008 208);
+      --segment-foreground: var(--foreground);
+      --border: oklch(0.88 0.02 215);
+      --separator: oklch(0.72 0.022 218);
+      --focus: var(--accent);
+      --link: var(--foreground);
+      --surface-shadow:
+        0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+        0 0 1px 0 rgba(0, 0, 0, 0.06);
+      --overlay-shadow:
+        0 2px 8px 0 rgba(0, 0, 0, 0.04), 0 -6px 12px 0 rgba(0, 0, 0, 0.02),
+        0 14px 28px 0 rgba(0, 0, 0, 0.06);
+      --field-shadow:
+        0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+        0 0 1px 0 rgba(0, 0, 0, 0.06);
+    }
+
+    @variant ocean-dark {
+      --background: oklch(0.16 0.032 218);
+      --foreground: oklch(0.94 0.02 220);
+      --surface: oklch(0.22 0.04 215);
+      --surface-foreground: var(--foreground);
+      --overlay: oklch(0.22 0.04 215);
+      --overlay-foreground: var(--foreground);
+      --muted: oklch(0.62 0.04 222);
+      --default: oklch(0.28 0.038 218);
+      --default-foreground: var(--foreground);
+      --accent: oklch(0.62 0.18 238);
+      --accent-foreground: oklch(0.99 0 0);
+      --field-background: oklch(0.22 0.04 215);
+      --field-foreground: var(--foreground);
+      --field-placeholder: var(--muted);
+      --field-border: transparent;
+      --success: oklch(0.7329 0.1935 150.81);
+      --success-foreground: var(--eclipse);
+      --warning: oklch(0.8203 0.1388 76.34);
+      --warning-foreground: var(--eclipse);
+      --danger: oklch(0.594 0.1967 24.63);
+      --danger-foreground: var(--snow);
+      --segment: oklch(0.32 0.05 218);
+      --segment-foreground: var(--foreground);
+      --border: oklch(0.34 0.045 218);
+      --separator: oklch(0.44 0.04 218);
+      --focus: var(--accent);
+      --link: var(--foreground);
+      --surface-shadow: 0 0 0 0 transparent inset;
+      --overlay-shadow: 0 0 1px 0 rgba(255, 255, 255, 0.25) inset;
+      --field-shadow: 0 0 0 0 transparent inset;
+    }
+
+    /* Mint: soft greens/aquas, hue 162–168, consistent L/C for unified Mint family */
+    @variant mint-light {
+      --background: oklch(0.96 0.018 165);
+      --foreground: oklch(0.26 0.03 168);
+      --surface: oklch(0.985 0.01 163);
+      --surface-foreground: var(--foreground);
+      --overlay: oklch(0.985 0.01 163);
+      --overlay-foreground: var(--foreground);
+      --muted: oklch(0.50 0.035 166);
+      --default: oklch(0.91 0.022 164);
+      --default-foreground: var(--foreground);
+      --accent: oklch(0.50 0.15 162);
+      --accent-foreground: oklch(0.99 0 0);
+      --field-background: oklch(0.985 0.01 163);
+      --field-foreground: oklch(0.26 0.03 168);
+      --field-placeholder: var(--muted);
+      --field-border: transparent;
+      --success: oklch(0.7329 0.1935 150.81);
+      --success-foreground: var(--eclipse);
+      --warning: oklch(0.7819 0.1585 72.33);
+      --warning-foreground: var(--eclipse);
+      --danger: oklch(0.6532 0.2328 25.74);
+      --danger-foreground: var(--snow);
+      --segment: oklch(0.985 0.01 163);
+      --segment-foreground: var(--foreground);
+      --border: oklch(0.86 0.025 165);
+      --separator: oklch(0.70 0.028 166);
+      --focus: var(--accent);
+      --link: var(--foreground);
+      --surface-shadow:
+        0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+        0 0 1px 0 rgba(0, 0, 0, 0.06);
+      --overlay-shadow:
+        0 2px 8px 0 rgba(0, 0, 0, 0.04), 0 -6px 12px 0 rgba(0, 0, 0, 0.02),
+        0 14px 28px 0 rgba(0, 0, 0, 0.06);
+      --field-shadow:
+        0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+        0 0 1px 0 rgba(0, 0, 0, 0.06);
+    }
+
+    @variant mint-dark {
+      --background: oklch(0.17 0.035 165);
+      --foreground: oklch(0.93 0.022 164);
+      --surface: oklch(0.23 0.045 163);
+      --surface-foreground: var(--foreground);
+      --overlay: oklch(0.23 0.045 163);
+      --overlay-foreground: var(--foreground);
+      --muted: oklch(0.60 0.04 166);
+      --default: oklch(0.29 0.042 164);
+      --default-foreground: var(--foreground);
+      --accent: oklch(0.58 0.15 162);
+      --accent-foreground: oklch(0.99 0 0);
+      --field-background: oklch(0.23 0.045 163);
+      --field-foreground: var(--foreground);
+      --field-placeholder: var(--muted);
+      --field-border: transparent;
+      --success: oklch(0.7329 0.1935 150.81);
+      --success-foreground: var(--eclipse);
+      --warning: oklch(0.8203 0.1388 76.34);
+      --warning-foreground: var(--eclipse);
+      --danger: oklch(0.594 0.1967 24.63);
+      --danger-foreground: var(--snow);
+      --segment: oklch(0.33 0.05 164);
+      --segment-foreground: var(--foreground);
+      --border: oklch(0.35 0.045 165);
+      --separator: oklch(0.45 0.042 165);
+      --focus: var(--accent);
+      --link: var(--foreground);
+      --surface-shadow: 0 0 0 0 transparent inset;
+      --overlay-shadow: 0 0 1px 0 rgba(255, 255, 255, 0.25) inset;
+      --field-shadow: 0 0 0 0 transparent inset;
+    }
+
+    /* Dark Pro: OLED (#000 background), high-contrast white text, indigo accent (WCAG-safe) */
+    @variant dark-pro {
+      --background: #000000;
+      --foreground: oklch(0.985 0 0);
+      --surface: oklch(0.10 0.008 285);
+      --surface-foreground: var(--foreground);
+      --overlay: oklch(0.10 0.008 285);
+      --overlay-foreground: var(--foreground);
+      --muted: oklch(0.58 0.018 285);
+      --default: oklch(0.16 0.012 285);
+      --default-foreground: var(--foreground);
+      --accent: oklch(0.58 0.22 275);
+      --accent-foreground: oklch(0.99 0 0);
+      --field-background: oklch(0.10 0.008 285);
+      --field-foreground: var(--foreground);
+      --field-placeholder: var(--muted);
+      --field-border: transparent;
+      --success: oklch(0.7329 0.1935 150.81);
+      --success-foreground: var(--eclipse);
+      --warning: oklch(0.8203 0.1388 76.34);
+      --warning-foreground: var(--eclipse);
+      --danger: oklch(0.594 0.1967 24.63);
+      --danger-foreground: var(--snow);
+      --segment: oklch(0.20 0.03 275);
+      --segment-foreground: var(--foreground);
+      --border: oklch(0.24 0.015 285);
+      --separator: oklch(0.34 0.012 285);
+      --focus: var(--accent);
+      --link: var(--foreground);
+      --surface-shadow: 0 0 0 0 transparent inset;
+      --overlay-shadow: 0 0 1px 0 rgba(255, 255, 255, 0.18) inset;
+      --field-shadow: 0 0 0 0 transparent inset;
+    }
+  }
 }

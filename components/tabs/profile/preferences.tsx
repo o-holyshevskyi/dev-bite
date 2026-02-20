@@ -5,21 +5,102 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from "expo-constants";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
+import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
 import * as Sharing from "expo-sharing";
 import { useRouter } from "expo-router";
 import { Card, useThemeColor } from "heroui-native";
-import { Alert, Pressable, StyleSheet, Switch, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
+import { Uniwind } from "uniwind";
+import { getEffectiveTheme } from "@/src/utils/theme";
+import type { ColorMode, ThemePalette } from "@/store/userStore";
+
+const PALETTE_OPTIONS: Array<{
+  id: ThemePalette;
+  label: string;
+  backgroundColor: string;
+  accentColor: string;
+}> = [
+  { id: "default", label: "Default", backgroundColor: "#f7f7f8", accentColor: "#6366f1" },
+  { id: "ocean", label: "Ocean", backgroundColor: "#e8f0f5", accentColor: "#0ea5e9" },
+  { id: "mint", label: "Mint", backgroundColor: "#e8f5f0", accentColor: "#10b981" },
+  { id: "dark-pro", label: "Dark Pro", backgroundColor: "#000000", accentColor: "#818cf8" },
+];
+
+type ThemeSwatchProps = {
+  id: string;
+  label: string;
+  backgroundColor: string;
+  accentColor: string;
+  isActive: boolean;
+  borderColor: string;
+  labelColor: string;
+  onPress: () => void;
+};
+
+function ThemeSwatch({
+  label,
+  backgroundColor,
+  accentColor,
+  isActive,
+  borderColor,
+  labelColor,
+  onPress,
+}: ThemeSwatchProps) {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => {
+        scale.value = withSpring(0.95);
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1);
+      }}
+    >
+      <Animated.View style={[styles.swatchOuter, animatedStyle]}>
+        <View
+          style={[
+            styles.swatchCircleWrapper,
+            Platform.OS === "ios" && styles.swatchCircleShadow,
+            isActive && {
+              borderColor,
+              borderWidth: 3,
+              ...(Platform.OS === "ios"
+                ? {
+                    shadowColor: borderColor,
+                    shadowOffset: { width: 5, height: 5 },
+                    shadowOpacity: 0.7,
+                    shadowRadius: 10,
+                  }
+                : { elevation: 10 }),
+            },
+          ]}
+        >
+          <View style={[styles.swatchPreview, { backgroundColor: accentColor }]} />
+        </View>
+        <ThemedText style={[styles.swatchLabel, { color: labelColor }]} numberOfLines={1}>
+          {label}
+        </ThemedText>
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 const Preferences = () => {
   const muted = useThemeColor("muted");
   const foreground = useThemeColor("foreground");
   const accent = useThemeColor("accent");
+  const accentForeground = useThemeColor("accent-foreground");
   const router = useRouter();
   const resetStore = useUserStore((state) => state.resetStore);
   const getPortableBackup = useUserStore((state) => state.getPortableBackup);
@@ -28,6 +109,10 @@ const Preferences = () => {
   const settings = useUserStore((state) => state.settings);
   const updatePreferences = useUserStore((state) => state.updatePreferences);
   const updateSettings = useUserStore((state) => state.updateSettings);
+  const colorMode = useUserStore((state) => state.settings.colorMode);
+  const themePalette = useUserStore((state) => state.settings.themePalette);
+  const updateColorMode = useUserStore((state) => state.updateColorMode);
+  const updateThemePalette = useUserStore((state) => state.updateThemePalette);
   const appVersion = Constants.expoConfig?.version ?? "1.0.0";
 
   const difficultyLabel =
@@ -133,6 +218,32 @@ const Preferences = () => {
     }
   };
 
+  const applyTheme = (mode: ColorMode, palette: ThemePalette) => {
+    const effective = getEffectiveTheme(mode, palette);
+    Uniwind.setTheme(effective);
+  };
+
+  const handleModeSelect = (mode: ColorMode) => {
+    if (settings.hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    updateColorMode(mode);
+    const nextPalette =
+      mode === 'light' && themePalette === 'dark-pro' ? 'default' : themePalette;
+    if (nextPalette !== themePalette) {
+      updateThemePalette(nextPalette);
+    }
+    applyTheme(mode, nextPalette);
+  };
+
+  const handlePaletteSelect = (palette: ThemePalette) => {
+    if (settings.hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    updateThemePalette(palette);
+    applyTheme(colorMode, palette);
+  };
+
   return (
     <View style={styles.container}>
       <Card
@@ -145,6 +256,33 @@ const Preferences = () => {
         ]}
       >
         <Card.Body style={styles.body}>
+          <View style={styles.themeSection}>
+            <ThemedText style={[styles.themeSectionTitle, { color: foreground }]}>
+              Theme
+            </ThemedText>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.themeSwatchList}
+              style={styles.themeSwatchScroll}
+            >
+              {PALETTE_OPTIONS.filter(
+                (option) => option.id !== "dark-pro" || colorMode === "dark",
+              ).map((option) => (
+                <ThemeSwatch
+                  key={option.id}
+                  id={option.id}
+                  label={option.label}
+                  backgroundColor={option.backgroundColor}
+                  accentColor={option.accentColor}
+                  isActive={themePalette === option.id}
+                  borderColor={accent}
+                  labelColor={foreground}
+                  onPress={() => handlePaletteSelect(option.id)}
+                />
+              ))}
+            </ScrollView>
+          </View>
           <PreferenceRow
             iconName="bell"
             label="Notifications"
@@ -164,6 +302,16 @@ const Preferences = () => {
             type="switch"
             switchValue={settings.hapticsEnabled}
             onSwitchChange={(val) => updateSettings({ hapticsEnabled: val })}
+          />
+          <PreferenceRow
+            iconName="paintbrush.fill"
+            label="Appearance"
+            iconColor={accent}
+            foreground={foreground}
+            muted={muted}
+            type="switch"
+            switchValue={colorMode === "dark"}
+            onSwitchChange={(on) => handleModeSelect(on ? "dark" : "light")}
           />
           <PreferenceRow
             iconName="paintbrush"
@@ -234,6 +382,8 @@ type PreferenceRowProps = {
   onSwitchChange?: (val: boolean) => void;
   showChevron?: boolean;
   isDestructive?: boolean;
+  /** When set, rendered on the right instead of value/switch/chevron. Row is not pressable. */
+  rightContent?: React.ReactNode;
 };
 
 const PreferenceRow = ({
@@ -249,6 +399,7 @@ const PreferenceRow = ({
   onSwitchChange,
   showChevron = true,
   isDestructive,
+  rightContent,
 }: PreferenceRowProps) => {
   const isSwitch = type === "switch";
   const scale = useSharedValue(1);
@@ -264,7 +415,55 @@ const PreferenceRow = ({
     onPress?.();
   };
 
-  const isInteractive = isSwitch ? !!onSwitchChange : !!onPress;
+  const isInteractive = rightContent ? false : isSwitch ? !!onSwitchChange : !!onPress;
+
+  const rowContent = (
+    <Animated.View style={[styles.row, rightContent ? undefined : animatedStyle]}>
+      <View style={styles.rowLeft}>
+        <View
+          style={[
+            styles.iconContainer,
+            {
+              backgroundColor: iconColor + "20",
+            },
+          ]}
+        >
+          <IconSymbol name={iconName as any} size={20} color={iconColor} />
+        </View>
+        <ThemedText
+          style={[
+            styles.rowLabel,
+            { color: isDestructive ? "#F97373" : foreground },
+          ]}
+        >
+          {label}
+        </ThemedText>
+      </View>
+      <View style={styles.rowRight}>
+        {rightContent !== undefined ? (
+          rightContent
+        ) : value ? (
+          <ThemedText style={[styles.valueText, { color: muted }]}>
+            {value}
+          </ThemedText>
+        ) : null}
+        {rightContent === undefined && isSwitch ? (
+          <Switch
+            value={switchValue}
+            onValueChange={onSwitchChange}
+            trackColor={{ false: muted + "66", true: iconColor + "80" }}
+            thumbColor={switchValue ? iconColor : "#f5f5f5"}
+          />
+        ) : rightContent === undefined && showChevron ? (
+          <IconSymbol name="chevron.right" size={16} color={muted} />
+        ) : null}
+      </View>
+    </Animated.View>
+  );
+
+  if (rightContent !== undefined) {
+    return <View>{rowContent}</View>;
+  }
 
   return (
     <Pressable
@@ -277,45 +476,7 @@ const PreferenceRow = ({
         scale.value = withSpring(1);
       }}
     >
-      <Animated.View style={[styles.row, animatedStyle]}>
-        <View style={styles.rowLeft}>
-          <View
-            style={[
-              styles.iconContainer,
-              {
-                backgroundColor: iconColor + "20",
-              },
-            ]}
-          >
-            <IconSymbol name={iconName as any} size={20} color={iconColor} />
-          </View>
-          <ThemedText
-            style={[
-              styles.rowLabel,
-              { color: isDestructive ? "#F97373" : foreground },
-            ]}
-          >
-            {label}
-          </ThemedText>
-        </View>
-        <View style={styles.rowRight}>
-          {value ? (
-            <ThemedText style={[styles.valueText, { color: muted }]}>
-              {value}
-            </ThemedText>
-          ) : null}
-          {isSwitch ? (
-            <Switch
-              value={switchValue}
-              onValueChange={onSwitchChange}
-              trackColor={{ false: muted + "66", true: iconColor + "80" }}
-              thumbColor={switchValue ? iconColor : "#f5f5f5"}
-            />
-          ) : showChevron ? (
-            <IconSymbol name="chevron.right" size={16} color={muted} />
-          ) : null}
-        </View>
-      </Animated.View>
+      {rowContent}
     </Pressable>
   );
 };
@@ -333,6 +494,54 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingVertical: 8,
+  },
+  themeSection: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  themeSectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  themeSwatchScroll: {
+    marginHorizontal: -4,
+  },
+  themeSwatchList: {
+    flexDirection: "row",
+    gap: 20,
+    paddingVertical: 8,
+  },
+  swatchOuter: {
+    alignItems: "center",
+    width: 72,
+  },
+  swatchCircleWrapper: {
+    borderRadius: 999,
+    padding: 3,
+    borderWidth: 0,
+    borderColor: "transparent",
+    elevation: 4,
+  },
+  swatchCircleShadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+  },
+  swatchPreview: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#ccc",
+  },
+  swatchLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 10,
+    textAlign: "center",
+    maxWidth: 72,
   },
   row: {
     flexDirection: "row",

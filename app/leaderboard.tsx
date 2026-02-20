@@ -158,6 +158,7 @@ function LeaderboardRow({
 export default function LeaderboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const background = useThemeColor('background');
   const foreground = useThemeColor('foreground');
   const muted = useThemeColor('muted');
   const accent = useThemeColor('accent');
@@ -181,7 +182,7 @@ export default function LeaderboardScreen() {
   }, [xp, profile.name, profile.avatarUrl]);
 
   return (
-    <View style={[styles.container, { backgroundColor: '#000' }]}>
+    <View style={[styles.container, { backgroundColor: background }]}>
       <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <IconSymbol name="chevron.left" size={20} color={foreground} />

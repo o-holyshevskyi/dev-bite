@@ -1,6 +1,9 @@
 /**
- * Learn more about light and dark modes:
- * https://docs.expo.dev/guides/color-schemes/
+ * Legacy theme color hook (device light/dark only).
+ * Prefer HeroUI Native's useThemeColor from 'heroui-native' for semantic colors
+ * that respect Uniwind themes (Ocean, Mint, Dark Pro, etc.).
+ *
+ * @deprecated Use `useThemeColor('foreground' | 'muted' | 'accent' | …)` from 'heroui-native' instead.
  */
 
 import { Colors } from '@/constants/theme';

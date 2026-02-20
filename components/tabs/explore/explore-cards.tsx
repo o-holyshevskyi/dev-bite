@@ -2,11 +2,13 @@ import { ExploreCard } from "@/app/(tabs)/explore";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol.ios";
 import useUserStore from "@/store/userStore";
+import { getContrastSafePackColor } from "@/src/utils/color";
 import { useRouter } from "expo-router";
 import { Card, useThemeColor } from "heroui-native";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Alert, Dimensions, Pressable, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { useUniwind } from "uniwind";
 
 const WIDTH = Dimensions.get('screen').width / 2.3;
 
@@ -14,15 +16,23 @@ interface ExploreCardProps {
     card: ExploreCard;
 }
 
+const isLightTheme = (theme: string) =>
+    theme === 'light' || theme === 'ocean-light' || theme === 'mint-light';
+
 export const ExploreCardItem = ({ card }: ExploreCardProps) => {
     const router = useRouter();
     const isPro = useUserStore((state) => state.isPro);
+    const { theme } = useUniwind();
     const foreground = useThemeColor('foreground');
     const muted = useThemeColor('muted');
     const accent = useThemeColor('accent');
     const success = useThemeColor('success');
     const warning = useThemeColor('warning');
     const danger = useThemeColor('danger');
+    const packColor = useMemo(
+        () => getContrastSafePackColor(card.color, isLightTheme(theme)),
+        [card.color, theme],
+    );
     const scale = useSharedValue(1);
     const progressWidth = useSharedValue(0);
 
@@ -95,8 +105,8 @@ export const ExploreCardItem = ({ card }: ExploreCardProps) => {
                 }}
             >
                 <Card.Header style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <View style={{ backgroundColor: card.color + '40', borderRadius: 9999, width: 50, height: 50, alignItems: 'center', justifyContent: 'center' }}>
-                        <IconSymbol name={card.icon as any} size={28} color={card.color} />
+                    <View style={{ backgroundColor: packColor + '40', borderRadius: 9999, width: 50, height: 50, alignItems: 'center', justifyContent: 'center' }}>
+                        <IconSymbol name={card.icon as any} size={28} color={packColor} />
                     </View>
                     {card.lockType === 'pro' && <IconSymbol name={'lock.fill'} size={24} color={muted + '80'} />}
                 </Card.Header>

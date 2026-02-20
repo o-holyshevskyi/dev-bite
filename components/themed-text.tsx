@@ -1,9 +1,13 @@
 import { StyleSheet, Text, type TextProps } from 'react-native';
 
-import { useThemeColor } from '@/hooks/use-theme-color';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeColor } from 'heroui-native';
+import { useUniwind } from 'uniwind';
 
 export type ThemedTextProps = TextProps & {
+  /** Optional override for light-ish themes (light, ocean-light, mint-light, system+light). */
   lightColor?: string;
+  /** Optional override for dark-ish themes (dark, ocean-dark, mint-dark, dark-pro, system+dark). */
   darkColor?: string;
   type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
 };
@@ -15,7 +19,16 @@ export function ThemedText({
   type = 'default',
   ...rest
 }: ThemedTextProps) {
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
+  const foreground = useThemeColor('foreground');
+  const { theme, hasAdaptiveThemes } = useUniwind();
+  const colorScheme = useColorScheme();
+  const isDark =
+    theme === 'dark' ||
+    theme === 'dark-pro' ||
+    theme.endsWith('-dark') ||
+    (hasAdaptiveThemes && colorScheme === 'dark');
+  const override = isDark ? darkColor : lightColor;
+  const color = override ?? foreground;
 
   return (
     <Text
@@ -28,7 +41,7 @@ export function ThemedText({
         type === 'link' ? styles.link : undefined,
         style,
       ]}
-      allowFontScaling={false} 
+      allowFontScaling={false}
       maxFontSizeMultiplier={1.0}
       {...rest}
     />
@@ -57,6 +70,5 @@ const styles = StyleSheet.create({
   link: {
     lineHeight: 30,
     fontSize: 16,
-    color: '#0a7ea4',
   },
 });

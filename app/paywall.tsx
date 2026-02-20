@@ -96,7 +96,7 @@ export default function PaywallScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: "#06070d" }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: background }]}>
       <View style={styles.container}>
         <View
           style={[

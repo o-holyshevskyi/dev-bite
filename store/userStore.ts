@@ -17,6 +17,7 @@ import {
   isPackInCurrentLearningLevel,
 } from '@/src/utils/learning-path';
 import { scheduleDailyReminder } from '@/src/utils/notifications';
+import { themeNameToModeAndPalette } from '@/src/utils/theme';
 import { getCurrentLevelBounds, getRankNameFromLevel } from '@/src/utils/rank';
 
 export interface UserProfile {
@@ -38,10 +39,20 @@ export interface PackProgress {
   incorrectSnippetIds: string[];
 }
 
+export type ColorMode = 'light' | 'dark';
+export type ThemePalette = 'default' | 'ocean' | 'mint' | 'dark-pro';
+
 export interface UserSettings {
   notificationsEnabled: boolean;
   hapticsEnabled: boolean;
+  /** @deprecated Use colorMode + themePalette. Kept for migration. */
   theme: 'dark' | 'light' | 'system';
+  /** @deprecated Use colorMode + themePalette. Kept for migration. */
+  themeName?: string;
+  /** Light, dark, or follow device (system). */
+  colorMode: ColorMode;
+  /** Palette: default (standard) or ocean, mint, dark-pro. Combined with colorMode for Uniwind theme. */
+  themePalette: ThemePalette;
 }
 
 export type DailyQuestionResult = 0 | 1 | 2; // 0=pending,1=correct,2=wrong
@@ -512,6 +523,8 @@ export interface UserStoreState {
     prefs: Partial<Pick<UserState, 'difficulty' | 'selectedStack'>>,
   ) => void;
   updateSettings: (newSettings: Partial<UserState['settings']>) => void;
+  updateColorMode: (mode: ColorMode) => void;
+  updateThemePalette: (palette: ThemePalette) => void;
   setStack: (stack: string[]) => void;
   setDifficulty: (difficulty: string) => void;
   getCategoryProgress: (categoryId: string) => number;
@@ -602,6 +615,8 @@ function createInitialUserData(): Pick<
       notificationsEnabled: true,
       hapticsEnabled: true,
       theme: 'dark',
+      colorMode: 'dark' as ColorMode,
+      themePalette: 'default' as ThemePalette,
     },
     solvedDailyIds: [],
     correctlySolvedDailyIds: [],
@@ -662,6 +677,20 @@ export const useUserStore = create<UserStoreState>()(
           settings: {
             ...state.settings,
             ...newSettings,
+          },
+        })),
+      updateColorMode: (mode) =>
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            colorMode: mode,
+          },
+        })),
+      updateThemePalette: (palette) =>
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            themePalette: palette,
           },
         })),
       setStack: (stack: string[]) =>
@@ -1146,7 +1175,7 @@ export const useUserStore = create<UserStoreState>()(
     {
       name: 'user-store',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 8,
+      version: 10,
       migrate: (persistedState: unknown) => {
         const state = (persistedState ?? {}) as Partial<UserStoreState> & {
           rank?: Partial<typeof initialRank>;
@@ -1172,12 +1201,25 @@ export const useUserStore = create<UserStoreState>()(
             normalizedPackProgress,
           ),
           shownAchievementBadgeIds: state.shownAchievementBadgeIds ?? [],
-          settings: {
-            notificationsEnabled: true,
-            hapticsEnabled: true,
-            theme: 'dark',
-            ...(state.settings ?? {}),
-          },
+          settings: (() => {
+            const prev = state.settings ?? {};
+            const legacy = prev.themeName ?? prev.theme;
+            const { colorMode, themePalette } =
+              typeof legacy === 'string'
+                ? themeNameToModeAndPalette(legacy)
+                  : {
+                    colorMode: (prev.colorMode ?? 'dark') as ColorMode,
+                    themePalette: (prev.themePalette ?? 'default') as ThemePalette,
+                  };
+            return {
+              notificationsEnabled: true,
+              hapticsEnabled: true,
+              theme: 'dark',
+              colorMode,
+              themePalette,
+              ...prev,
+            };
+          })(),
           isPro: state.isPro ?? false,
         } as UserStoreState;
       },

@@ -235,6 +235,8 @@ export function LearningPathScreen({ showBackButton = true }: { showBackButton?:
   const params = useLocalSearchParams<{ category?: string | string[]; difficulty?: string | string[] }>();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+  const background = useThemeColor('background');
+  const foreground = useThemeColor('foreground');
   const accent = useThemeColor('accent');
   const warning = useThemeColor('warning');
   const packProgress = useUserStore((state) => state.packProgress);
@@ -581,12 +583,12 @@ export function LearningPathScreen({ showBackButton = true }: { showBackButton?:
   }));
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: background }]}>
       <View style={[styles.topBar, { paddingTop: insets.top }]}>
         {showBackButton ? (
           <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <IconSymbol name="chevron.left" size={20} color="#f5f5f5" />
-            <ThemedText style={styles.backText}>Back</ThemedText>
+            <IconSymbol name="chevron.left" size={20} color={foreground} />
+            <ThemedText style={[styles.backText, { color: foreground }]}>Back</ThemedText>
           </Pressable>
         ) : (
           <View style={styles.backButton} />
@@ -713,7 +715,6 @@ export function LearningPathScreen({ showBackButton = true }: { showBackButton?:
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   topBar: {
     paddingHorizontal: 16,
@@ -732,7 +733,6 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#f5f5f5',
   },
   title: {
     fontSize: 19,

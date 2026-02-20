@@ -207,6 +207,7 @@ function IntroSlide({
 export default function OnboardingScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const background = useThemeColor('background');
   const accent = useThemeColor('accent');
   const foreground = useThemeColor('foreground');
   const muted = useThemeColor('muted');
@@ -336,7 +337,7 @@ export default function OnboardingScreen() {
 
   if (showSetupFlow) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: background }]}>
         <View style={styles.setupContainer}>
           <View style={styles.setupHeader}>
             <Text style={styles.appTitle}>DevBite</Text>
@@ -531,7 +532,7 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: background }]}>
       <Animated.FlatList
         data={SLIDES}
         keyExtractor={(item) => item.title}

@@ -30,6 +30,7 @@ export default function ProfileScreen() {
   const state = useUserStore();
   const shownAchievementBadgeIds = useUserStore((s) => s.shownAchievementBadgeIds);
   const markAchievementBadgesSeen = useUserStore((s) => s.markAchievementBadgesSeen);
+  const background = useThemeColor('background');
   const foreground = useThemeColor('foreground');
   const muted = useThemeColor('muted');
   const accent = useThemeColor('accent');
@@ -109,7 +110,7 @@ export default function ProfileScreen() {
   }, [isFocused, unseenUnlockedBadges, markAchievementBadgesSeen, hapticsEnabled]);
 
   return (
-    <View style={[styles.container, { backgroundColor: '#000' }]}>
+    <View style={[styles.container, { backgroundColor: background }]}>
       <View style={[styles.headerContainer, { height: HEADER_HEIGHT }]} pointerEvents="box-none">
         <Animated.View style={[styles.animatedHeader, headerAnimatedStyle]}>
           <View style={{ paddingTop: insets.top }}>

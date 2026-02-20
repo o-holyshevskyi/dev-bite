@@ -5,6 +5,7 @@ import SearchBar from '@/components/tabs/explore/search-bar';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol.ios';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useThemeColor } from 'heroui-native';
 import { useMemo, useState } from 'react';
 import { ListRenderItem, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
@@ -51,6 +52,11 @@ export interface ExploreCard {
 export default function ExploreScreen() {
     const router = useRouter();
     const params = useLocalSearchParams<{ category?: string | string[]; difficulty?: string | string[] }>();
+    const background = useThemeColor('background');
+    const foreground = useThemeColor('foreground');
+    const muted = useThemeColor('muted');
+    const surface = useThemeColor('surface');
+    const border = useThemeColor('border');
     const scrollY = useSharedValue(0);
     const insets = useSafeAreaInsets();
     const packProgress = useUserStore((state) => state.packProgress);
@@ -177,7 +183,7 @@ export default function ExploreScreen() {
     );
 
     return (
-        <View style={[styles.container, { backgroundColor: '#000' }]}>
+        <View style={[styles.container, { backgroundColor: background }]}>
             <View style={[styles.headerContainer, { height: HEADER_HEIGHT }]} pointerEvents="box-none">
                 <Animated.View style={[styles.animatedHeader, headerAnimatedStyle]}>
                     <View style={{ paddingTop: insets.top }}>
@@ -214,22 +220,22 @@ export default function ExploreScreen() {
                         />
                         {selectedCategory ? (
                             <View style={styles.categoryPillRow}>
-                                <View style={styles.categoryPill}>
-                                    <IconSymbol name="map.fill" size={14} color="#d1d5db" />
-                                    <ThemedText style={styles.categoryPillText}>
+                                <View style={[styles.categoryPill, { borderColor: border, backgroundColor: surface }]}>
+                                    <IconSymbol name="map.fill" size={14} color={foreground} />
+                                    <ThemedText style={[styles.categoryPillText, { color: foreground }]}>
                                         {selectedCategory}
                                     </ThemedText>
                                     {selectedDifficulty ? (
-                                        <ThemedText style={styles.categoryPillDivider}>·</ThemedText>
+                                        <ThemedText style={[styles.categoryPillDivider, { color: muted }]}>·</ThemedText>
                                     ) : null}
                                     {selectedDifficulty ? (
-                                        <ThemedText style={styles.categoryPillText}>
+                                        <ThemedText style={[styles.categoryPillText, { color: foreground }]}>
                                             {selectedDifficulty.toUpperCase()}
                                         </ThemedText>
                                     ) : null}
                                 </View>
                                 <Pressable onPress={() => router.replace('/(tabs)/explore')}>
-                                    <ThemedText style={styles.categoryClearText}>Clear</ThemedText>
+                                    <ThemedText style={[styles.categoryClearText, { color: muted }]}>Clear</ThemedText>
                                 </Pressable>
                             </View>
                         ) : null}
@@ -241,8 +247,8 @@ export default function ExploreScreen() {
                 }
                 ListEmptyComponent={
                     <View style={[styles.emptyStateContainer, { paddingTop: HEADER_HEIGHT + 40 }]}>
-                        <IconSymbol name="magnifyingglass" size={34} color="#6b7280" />
-                        <ThemedText style={styles.emptyStateText}>
+                        <IconSymbol name="magnifyingglass" size={34} color={muted} />
+                        <ThemedText style={[styles.emptyStateText, { color: muted }]}>
                             {trimmedSearchText.length > 0
                                 ? `No packs found for "${trimmedSearchText}"`
                                 : 'Try adjusting your filters.'}
@@ -274,12 +280,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 12,
     },
-    emptyStateText: {
-        color: '#6b7280',
-        textAlign: 'center',
-        fontSize: 14,
-        fontWeight: '600',
-    },
     categoryPillRow: {
         marginTop: 10,
         marginBottom: 6,
@@ -294,25 +294,25 @@ const styles = StyleSheet.create({
         gap: 6,
         borderRadius: 999,
         borderWidth: 1,
-        borderColor: '#3f3f46',
-        backgroundColor: '#18181b',
         paddingHorizontal: 10,
         paddingVertical: 5,
     },
     categoryPillText: {
-        color: '#d1d5db',
         fontSize: 12,
         fontWeight: '700',
     },
     categoryPillDivider: {
-        color: '#71717a',
         fontSize: 12,
         fontWeight: '700',
         marginHorizontal: 2,
     },
     categoryClearText: {
-        color: '#9ca3af',
         fontSize: 12,
         fontWeight: '700',
+    },
+    emptyStateText: {
+        textAlign: 'center',
+        fontSize: 14,
+        fontWeight: '600',
     },
 });

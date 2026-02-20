@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useThemeColor } from 'heroui-native';
 import Animated, {
   Extrapolation,
   FadeInDown,
@@ -19,6 +20,7 @@ import RecentPacksCard from '@/components/tabs/index/recent-packs-card';
 import Stats from '@/components/tabs/index/stats';
 
 export default function HomeScreen() {
+  const background = useThemeColor('background');
   const scrollY = useSharedValue(0);
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -61,7 +63,7 @@ export default function HomeScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: '#000' }]}>
+    <View style={[styles.container, { backgroundColor: background }]}>
       <View style={[styles.headerContainer, { height: HEADER_HEIGHT }]} pointerEvents="box-none">
         <Animated.View style={[styles.animatedHeader, headerAnimatedStyle]}>
           <View style={{ paddingTop: insets.top }}>

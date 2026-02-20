@@ -7,5 +7,5 @@ const config = getDefaultConfig(__dirname);
 module.exports = withUniwindConfig(config, {  
     cssEntryFile: './global.css',
     dtsFile: './uniwind-types.d.ts',
-    extraThemes: [],
+    extraThemes: ['ocean-light', 'ocean-dark', 'mint-light', 'mint-dark', 'dark-pro'],
 });

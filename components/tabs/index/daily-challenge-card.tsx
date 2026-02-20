@@ -20,6 +20,7 @@ import Animated, {
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 const DailyChallengeCard = ({ pauseEffects = false }: { pauseEffects?: boolean }) => {
+    const background = useThemeColor('background');
     const accent = useThemeColor('accent');
     const foreground = useThemeColor('foreground');
     const muted = useThemeColor('muted');
@@ -185,12 +186,12 @@ const DailyChallengeCard = ({ pauseEffects = false }: { pauseEffects?: boolean }
                         end={{ x: 1, y: 0 }}
                         style={[styles.gradientSweep, animatedGradientStyle]}
                     />
-                    <Animated.View style={styles.cardSurface}>
+                    <Animated.View style={[styles.cardSurface, { backgroundColor: background }]}>
                         <Card
                             style={[
                                 styles.card,
                                 {
-                                    backgroundColor: "#000",
+                                    backgroundColor: background,
                                     shadowColor: accent,
                                 },
                             ]}
@@ -303,7 +304,6 @@ const styles = StyleSheet.create({
     cardSurface: {
         borderRadius: 18,
         overflow: 'hidden',
-        backgroundColor: '#000',
     },
     card: {
         borderWidth: 0,
