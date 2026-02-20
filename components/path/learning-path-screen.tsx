@@ -35,6 +35,23 @@ const DIFFICULTY_ORDER: Difficulty[] = [
   'master',
   'principal',
 ];
+
+/** Cool → warm gradient by level rank (Easy = cool, Principal = warm). */
+const LEVEL_GRADIENT_COLORS: string[] = [
+  '#3b82f6', // easy - blue
+  '#06b6d4', // medium - cyan
+  '#10b981', // hard - emerald
+  '#84cc16', // advanced - lime
+  '#eab308', // expert - yellow
+  '#f97316', // master - orange
+  '#ef4444', // principal - red
+];
+
+function getLevelRankColor(difficulty: Difficulty): string {
+  const i = DIFFICULTY_ORDER.indexOf(difficulty);
+  return LEVEL_GRADIENT_COLORS[Math.max(0, Math.min(i, LEVEL_GRADIENT_COLORS.length - 1))] ?? LEVEL_GRADIENT_COLORS[0];
+}
+
 const LANES_X = [150, 420, 690];
 const GROUP_HEIGHT = 1240;
 const NODE_VERTICAL_GAP = 160;
@@ -86,8 +103,7 @@ type PathNodeProps = {
   node: ChapterNode;
   index: number;
   animationCycle: number;
-  accentColor: string;
-  warningColor: string;
+  levelColor: string;
   isSuggested: boolean;
   onPress: () => void;
 };
@@ -96,15 +112,14 @@ function PathNode({
   node,
   index,
   animationCycle,
-  accentColor,
-  warningColor,
+  levelColor,
   isSuggested,
   onPress,
 }: PathNodeProps) {
   const ringProgress = node.progress;
   const iconTint = node.isAvailable ? '#f5f5f5' : '#7d7d7d';
   const trackTint = node.isAvailable ? '#2b2b2b' : '#2f2f2f';
-  const progressTint = node.isCompleted ? accentColor : warningColor;
+  const progressTint = levelColor;
   const fillTint = node.isAvailable ? '#0f0f0f' : '#1a1a1a';
   const animatedProgress = useSharedValue(0);
   const pulse = useSharedValue(0);
@@ -159,7 +174,7 @@ function PathNode({
           {isSuggested && node.isAvailable && node.hasContent ? (
             <Animated.View
               pointerEvents="none"
-              style={[styles.pulseHalo, { borderColor: accentColor }, pulseStyle]}
+              style={[styles.pulseHalo, { borderColor: levelColor }, pulseStyle]}
             />
           ) : null}
           <Svg width={NODE_SIZE} height={NODE_SIZE} style={styles.progressRing}>
@@ -622,8 +637,7 @@ export function LearningPathScreen({ showBackButton = true }: { showBackButton?:
                 node={node}
                 index={index}
                 animationCycle={animationCycle}
-                accentColor={accent}
-                warningColor={warning}
+                levelColor={getLevelRankColor(node.difficulty)}
                 isSuggested={node.id === firstIncompleteUnlockedNode?.id}
                 onPress={() => handleNodePress(node)}
               />
@@ -655,7 +669,7 @@ export function LearningPathScreen({ showBackButton = true }: { showBackButton?:
                   key={`${connection.from.id}->${connection.to.id}`}
                   d={`M ${connection.from.x} ${connection.from.y + NODE_SIZE / 2 - LEVEL_LINK_OVERLAP} L ${connection.to.x} ${connection.to.y - NODE_SIZE / 2 + LEVEL_LINK_OVERLAP}`}
                   fill="none"
-                  stroke={connection.isActive ? accent : '#3f3f46'}
+                  stroke={connection.isActive ? getLevelRankColor(connection.from.difficulty) : '#3f3f46'}
                   strokeWidth={connection.isActive ? 2.5 : 2}
                 />
               ))}
