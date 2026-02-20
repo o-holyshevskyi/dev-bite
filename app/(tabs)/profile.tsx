@@ -1,4 +1,4 @@
-import { Dimensions, ScrollView, StyleSheet, View } from 'react-native';
+import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import Header from '@/components/tabs/profile/header';
@@ -8,18 +8,22 @@ import Stats from '@/components/tabs/profile/stats';
 import Badges from '@/components/tabs/profile/badges';
 import UpgradeCta from '@/components/tabs/profile/upgrade-cta';
 import Preferences from '@/components/tabs/profile/preferences';
+import LeaderboardEntry from '@/components/tabs/profile/leaderboard-entry';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol.ios';
 import { getUnlockedBadges } from '@/src/utils/badges';
+import { quizPacks } from '@/src/data/mockData';
 import { useUserStore } from '@/store/userStore';
 import { useIsFocused } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 import { Button, Dialog, useThemeColor } from 'heroui-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import Animated, { Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const scrollY = useSharedValue(0);
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
@@ -30,7 +34,9 @@ export default function ProfileScreen() {
   const muted = useThemeColor('muted');
   const accent = useThemeColor('accent');
   const success = useThemeColor('success');
+  const warning = useThemeColor('warning');
   const isPro = useUserStore((s) => s.isPro);
+  const getCategoryProgress = useUserStore((s) => s.getCategoryProgress);
   const [isAchievementDialogOpen, setIsAchievementDialogOpen] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [dialogBadges, setDialogBadges] = useState<typeof unlockedBadges>([]);
@@ -44,6 +50,23 @@ export default function ProfileScreen() {
       ),
     [unlockedBadges, shownAchievementBadgeIds],
   );
+  const pathSummary = useMemo(() => {
+    const seen = new Set<string>();
+    const categories: { category: string; progress: number }[] = [];
+
+    for (const pack of quizPacks) {
+      const key = (pack.category ?? '').trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      categories.push({
+        category: pack.category ?? pack.language,
+        progress: getCategoryProgress(pack.category ?? pack.language),
+      });
+    }
+
+    const mastered = categories.filter((item) => item.progress >= 100).map((item) => item.category);
+    return { categories, mastered };
+  }, [getCategoryProgress]);
 
   const HEADER_HEIGHT = 60 + insets.top; 
 
@@ -100,6 +123,49 @@ export default function ProfileScreen() {
         <Hero />
         <Level />
         <Stats />
+        <View style={[styles.pathSummaryCard, { borderColor: accent + '35', backgroundColor: accent + '12' }]}>
+          <View style={styles.pathSummaryHeader}>
+            <View style={styles.pathSummaryTitleRow}>
+              <IconSymbol name="map.fill" size={18} color={accent} />
+              <ThemedText style={[styles.pathSummaryTitle, { color: foreground }]}>
+                Learning Path
+              </ThemedText>
+            </View>
+            <Pressable onPress={() => router.push('/(tabs)/path')}>
+              <ThemedText style={[styles.pathSummaryLink, { color: accent }]}>Open</ThemedText>
+            </Pressable>
+          </View>
+
+          <ThemedText style={[styles.pathSummarySubtitle, { color: muted }]}>
+            {pathSummary.mastered.length > 0
+              ? `Mastered: ${pathSummary.mastered.join(', ')}`
+              : 'No technologies mastered yet. Keep building streaks.'}
+          </ThemedText>
+
+          <View style={styles.pathSummaryList}>
+            {pathSummary.categories.map((item) => (
+              <View key={item.category} style={styles.pathSummaryRow}>
+                <ThemedText style={[styles.pathSummaryCategory, { color: foreground }]}>
+                  {item.category}
+                </ThemedText>
+                <View style={[styles.pathSummaryTrack, { backgroundColor: muted + '2e' }]}>
+                  <View
+                    style={[
+                      styles.pathSummaryFill,
+                      {
+                        width: `${Math.max(0, Math.min(100, item.progress))}%`,
+                        backgroundColor: item.progress >= 100 ? success : warning,
+                      },
+                    ]}
+                  />
+                </View>
+                <ThemedText style={[styles.pathSummaryPercent, { color: muted }]}>
+                  {Math.round(item.progress)}%
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+        </View>
         <Badges />
         {isPro ? (
           <View style={[styles.proBadgeRow, { borderColor: success + '40', backgroundColor: success + '14' }]}>
@@ -111,6 +177,7 @@ export default function ProfileScreen() {
         ) : (
           <UpgradeCta />
         )}
+        <LeaderboardEntry />
         <Preferences />
       </Animated.ScrollView>
 
@@ -246,5 +313,65 @@ const styles = StyleSheet.create({
   proBadgeText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  pathSummaryCard: {
+    marginTop: 22,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  pathSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pathSummaryTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pathSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  pathSummaryLink: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pathSummarySubtitle: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  pathSummaryList: {
+    gap: 8,
+  },
+  pathSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pathSummaryCategory: {
+    width: 86,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  pathSummaryTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  pathSummaryFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  pathSummaryPercent: {
+    width: 38,
+    textAlign: 'right',
+    fontSize: 11,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
 });

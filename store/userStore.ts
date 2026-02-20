@@ -71,7 +71,15 @@ const LEVEL_TO_DIFFICULTY: Record<string, Difficulty> = {
   Senior: 'hard',
 };
 
-const DIFFICULTY_ORDER: Difficulty[] = ['easy', 'medium', 'hard'];
+const DIFFICULTY_ORDER: Difficulty[] = [
+  'easy',
+  'medium',
+  'hard',
+  'advanced',
+  'expert',
+  'master',
+  'principal',
+];
 
 function getLocalDateKey(date = new Date()): string {
   const y = date.getFullYear();
@@ -269,6 +277,7 @@ export interface UserStoreState {
   updateSettings: (newSettings: Partial<UserState['settings']>) => void;
   setStack: (stack: string[]) => void;
   setDifficulty: (difficulty: string) => void;
+  getCategoryProgress: (categoryId: string) => number;
   unlockPro: () => void;
   completeOnboarding: () => void;
   markSnippetCompleted: (
@@ -435,6 +444,31 @@ export const useUserStore = create<UserStoreState>()(
             lastGeneratedDate: null,
           },
         })),
+      getCategoryProgress: (categoryId: string) => {
+        const normalizedCategoryId = categoryId.trim().toLowerCase();
+        if (!normalizedCategoryId) return 0;
+
+        const state = get();
+        const packsInCategory = quizPacks.filter(
+          (pack) => pack.category.trim().toLowerCase() === normalizedCategoryId,
+        );
+        const categorySnippetIds = new Set(
+          packsInCategory.flatMap((pack) => pack.snippets.map((snippet) => snippet.id)),
+        );
+        const totalSnippets = categorySnippetIds.size;
+        if (totalSnippets === 0) return 0;
+
+        const completedCount = new Set(
+          state.packProgress.flatMap((progress) =>
+            progress.completedSnippetIds.filter((snippetId) =>
+              categorySnippetIds.has(snippetId),
+            ),
+          ),
+        ).size;
+
+        const progress = (completedCount / totalSnippets) * 100;
+        return Math.min(100, Math.max(0, progress));
+      },
       unlockPro: () =>
         set(() => ({
           isPro: true,

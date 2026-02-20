@@ -47,7 +47,9 @@ export default function PaywallScreen() {
   const router = useRouter();
   const unlockPro = useUserStore((state) => state.unlockPro);
   const isPro = useUserStore((state) => state.isPro);
-  const [isLoading, setIsLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"purchase" | "restore" | null>(
+    null,
+  );
 
   const background = useThemeColor("background");
   const foreground = useThemeColor("foreground");
@@ -57,6 +59,15 @@ export default function PaywallScreen() {
   const warning = useThemeColor("warning");
 
   const proGradientTone = useMemo(() => `${warning}1f`, [warning]);
+  const isLoading = pendingAction !== null;
+  const isRestoring = pendingAction === "restore";
+
+  const completeUpgradeAndClose = (message: string) => {
+    unlockPro();
+    setPendingAction(null);
+    Alert.alert(message);
+    router.back();
+  };
 
   const handleUnlockPro = () => {
     if (isLoading) return;
@@ -65,13 +76,22 @@ export default function PaywallScreen() {
       return;
     }
 
-    setIsLoading(true);
+    setPendingAction("purchase");
 
     setTimeout(() => {
-      unlockPro();
-      setIsLoading(false);
-      Alert.alert("Welcome to Pro! 🎉");
-      router.back();
+      completeUpgradeAndClose("Welcome to Pro! 🎉");
+    }, 1500);
+  };
+
+  const handleRestorePurchases = () => {
+    if (isLoading) return;
+
+    setPendingAction("restore");
+
+    setTimeout(() => {
+      completeUpgradeAndClose(
+        isPro ? "Your Pro access is already active." : "Purchases restored! Welcome back to Pro! 🎉",
+      );
     }, 1500);
   };
 
@@ -176,7 +196,7 @@ export default function PaywallScreen() {
           onPress={handleUnlockPro}
         >
           <View style={styles.ctaInner}>
-            {isLoading ? (
+            {isLoading && !isRestoring ? (
               <>
                 <ActivityIndicator size="small" color={background} />
                 <ThemedText style={[styles.ctaText, { color: background }]}>
@@ -190,6 +210,24 @@ export default function PaywallScreen() {
             )}
           </View>
         </Button>
+        <Pressable
+          onPress={handleRestorePurchases}
+          disabled={isLoading}
+          style={styles.restoreButton}
+        >
+          {isRestoring ? (
+            <View style={styles.restoreLoading}>
+              <ActivityIndicator size="small" color={muted} />
+              <ThemedText style={[styles.restoreText, { color: muted }]}>
+                Restoring purchases...
+              </ThemedText>
+            </View>
+          ) : (
+            <ThemedText style={[styles.restoreText, { color: muted }]}>
+              Restore Purchases
+            </ThemedText>
+          )}
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -344,16 +382,33 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginTop: 14,
   },
+  restoreButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    minHeight: 28,
+  },
   ctaInner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
   },
+  restoreLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
   ctaText: {
     fontSize: 16,
     fontWeight: "900",
     letterSpacing: 0.3,
+  },
+  restoreText: {
+    fontSize: 13,
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
 });
 

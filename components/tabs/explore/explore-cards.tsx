@@ -5,7 +5,7 @@ import useUserStore from "@/store/userStore";
 import { useRouter } from "expo-router";
 import { Card, useThemeColor } from "heroui-native";
 import { useEffect } from "react";
-import { Dimensions, Pressable, View } from "react-native";
+import { Alert, Dimensions, Pressable, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 const WIDTH = Dimensions.get('screen').width / 2.3;
@@ -56,8 +56,26 @@ export const ExploreCardItem = ({ card }: ExploreCardProps) => {
     const handlePress = () => {
         resetScale();
 
-        if (card.isLocked && !isPro) {
+        if (card.isLocked && card.lockType === 'pro' && !isPro) {
             router.push('/paywall');
+            return;
+        }
+        if (card.isLocked && card.lockType === 'progress') {
+            Alert.alert(
+                'Chapter Locked',
+                card.lockReason ?? 'Complete previous chapter to unlock this pack.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Open Path',
+                        onPress: () =>
+                            router.push({
+                                pathname: '/(tabs)/path',
+                                params: { category: card.category, difficulty: card.difficult },
+                            }),
+                    },
+                ],
+            );
             return;
         }
 

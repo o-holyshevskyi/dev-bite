@@ -1,11 +1,13 @@
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol.ios";
+import { getLeaderboard } from "@/src/utils/leaderboard";
 import useUserStore, { getStreakStatus } from "@/store/userStore";
-import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
+import * as Haptics from "expo-haptics";
+import { useRouter } from "expo-router";
 import { Chip, useThemeColor } from "heroui-native";
-import { useEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
@@ -18,6 +20,12 @@ const Header = () => {
     const foreground = useThemeColor('foreground');
     const muted = useThemeColor('muted');
     const profile = useUserStore((state) => state.profile);
+    const router = useRouter();
+    const userXp = useUserStore((state) => state.rank.xp);
+    const globalRank = useMemo(() => {
+        const entry = getLeaderboard(userXp).find((item) => item.isUser);
+        return entry?.rank ?? 0;
+    }, [userXp]);
 
     const [date, setDate] = useState<string>('');
 
@@ -33,9 +41,40 @@ const Header = () => {
                 <ThemedText style={[styles.headerDateText, { color: muted }]}>{date}</ThemedText>
                 <ThemedText style={[styles.headerGreetingText, { color: foreground }]}>Good Morning, {profile.name}</ThemedText>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Pressable
+                    onPress={() => router.push('/leaderboard')}
+                    hitSlop={8}
+                    style={({ pressed }) => ({
+                        opacity: pressed ? 0.88 : 1,
+                        transform: [{ scale: pressed ? 0.98 : 1 }],
+                    })}
+                >
+                    <GlobalRankChip rank={globalRank} />
+                </Pressable>
                 <StreakChip />
             </View>
+        </View>
+    );
+}
+
+const GlobalRankChip = ({ rank }: { rank: number }) => {
+    const accent = useThemeColor('accent');
+    const muted = useThemeColor('muted');
+    return (
+        <View
+            style={[
+                styles.globalRankChip,
+                {
+                    borderColor: accent + '88',
+                    backgroundColor: accent + '24',
+                },
+            ]}
+        >
+            <IconSymbol name="trophy.fill" size={15} color={accent} style={{ marginRight: 4 }} />
+            <ThemedText style={[styles.globalRankChipText, { color: rank > 0 ? accent : muted }]}>
+                {rank > 0 ? `#${rank}` : '--'}
+            </ThemedText>
         </View>
     );
 }
@@ -169,6 +208,18 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         flexDirection: 'row',
         alignItems: 'center',
+    },
+    globalRankChip: {
+        alignSelf: 'center',
+        borderWidth: 1,
+        paddingHorizontal: 8,
+        height: 32,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    globalRankChipText: {
+        fontSize: 13,
+        fontWeight: '800',
     },
     streakChipText: {
         fontSize: 14,

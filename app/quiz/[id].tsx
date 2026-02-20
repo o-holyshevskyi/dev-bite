@@ -68,6 +68,15 @@ export default function QuizScreen() {
   const data = activeId ? getSnippetWithPackById(activeId) : null;
   const snippet = data?.snippet;
   const pack = data?.pack;
+  const packSnippets = pack?.snippets ?? [];
+  const currentPackSnippetIndex = packSnippets.findIndex((packSnippet) => packSnippet.id === activeId);
+  const currentPackPosition =
+    currentPackSnippetIndex >= 0 ? currentPackSnippetIndex + 1 : 0;
+  const packProgressTotal = packSnippets.length;
+  const packProgressRatio =
+    packProgressTotal > 0
+      ? Math.min(1, Math.max(0, currentPackPosition / packProgressTotal))
+      : 0;
 
   const correctAnswerId = snippet?.correctAnswerId ?? '';
   const isCorrect = status === 'correct';
@@ -79,7 +88,12 @@ export default function QuizScreen() {
     const correct = selectedOption === correctAnswerId;
     setStatus(correct ? 'correct' : 'wrong');
     if (isPackMode) {
-      setNextQuestionId(null);
+      const currentSnippetIndex = packSnippets.findIndex((packSnippet) => packSnippet.id === activeId);
+      const nextSnippetId =
+        currentSnippetIndex >= 0
+          ? (packSnippets[currentSnippetIndex + 1]?.id ?? null)
+          : null;
+      setNextQuestionId(nextSnippetId);
     } else {
       const submitResult = submitDailyAnswer(activeId, correct, selectedOption);
       setNextQuestionId(submitResult.nextQuestionId);
@@ -102,6 +116,7 @@ export default function QuizScreen() {
     activeId,
     correctAnswerId,
     isPackMode,
+    packSnippets,
     submitDailyAnswer,
   ]);
 
@@ -149,6 +164,26 @@ export default function QuizScreen() {
             {pack.title}
           </ThemedText>
         </View>
+        {isPackMode && (
+          <View style={styles.packProgressBlock}>
+            <View style={styles.packProgressMetaRow}>
+              <ThemedText style={[styles.packProgressText, { color: muted }]}>
+                Curriculum Progress
+              </ThemedText>
+              <ThemedText style={[styles.packProgressText, { color: foreground }]}>
+                {currentPackPosition} / {packProgressTotal}
+              </ThemedText>
+            </View>
+            <View style={[styles.packProgressTrack, { backgroundColor: muted + '20' }]}>
+              <View
+                style={[
+                  styles.packProgressFill,
+                  { width: `${Math.round(packProgressRatio * 100)}%`, backgroundColor: accent },
+                ]}
+              />
+            </View>
+          </View>
+        )}
         {!isPackMode && (
           <View style={styles.dailyProgressDots}>
             {dailyState.results.map((result, index) => {
@@ -297,6 +332,15 @@ export default function QuizScreen() {
                   if (currentPackId && activeId) {
                     markSnippetCompleted(currentPackId, activeId, isCorrect, selectedOption ?? undefined);
                   }
+                  if (nextQuestionId) {
+                    setSelectedOption(null);
+                    setStatus('idle');
+                    router.replace({
+                      pathname: '/quiz/[id]',
+                      params: { id: nextQuestionId, packId: currentPackId },
+                    });
+                    return;
+                  }
                   router.back();
                   return;
                 }
@@ -315,7 +359,7 @@ export default function QuizScreen() {
             >
               <Button.Label>
                 {isPackMode
-                  ? 'Back to Pack'
+                  ? (nextQuestionId ? 'Continue' : 'Back to Pack')
                   : isWrong
                     ? 'Got it'
                     : nextQuestionId
@@ -380,6 +424,29 @@ const styles = StyleSheet.create({
   packLabel: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  packProgressBlock: {
+    marginBottom: 14,
+    gap: 8,
+  },
+  packProgressMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  packProgressText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  packProgressTrack: {
+    width: '100%',
+    height: 8,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  packProgressFill: {
+    height: '100%',
+    borderRadius: 999,
   },
   questionText: {
     fontSize: 16,

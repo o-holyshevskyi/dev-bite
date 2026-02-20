@@ -1,4 +1,11 @@
-export type Difficulty = 'easy' | 'medium' | 'hard';
+export type Difficulty =
+  | 'easy'
+  | 'medium'
+  | 'hard'
+  | 'advanced'
+  | 'expert'
+  | 'master'
+  | 'principal';
 
 export interface AnswerOption {
   id: string;
@@ -27,13 +34,26 @@ export interface QuizPack {
   isLocked: boolean;
   difficulty: Difficulty;
   language: PackLanguage;
+  category: string;
   tags?: string[];
   snippets: Snippet[];
 }
 
 type SeedSnippet = Omit<Snippet, 'explanation'> & { explanation?: string };
-type SeedQuizPack = Omit<QuizPack, 'snippets'> & { snippets: SeedSnippet[] };
+type SeedQuizPack = Omit<QuizPack, 'snippets' | 'category'> & {
+  category?: string;
+  snippets: SeedSnippet[];
+};
 type AnswerId = 'a' | 'b' | 'c' | 'd';
+const DIFFICULTY_ORDER: Difficulty[] = [
+  'easy',
+  'medium',
+  'hard',
+  'advanced',
+  'expert',
+  'master',
+  'principal',
+];
 
 export interface DailyChallenge {
   id: string;
@@ -307,6 +327,82 @@ const baseQuizPacks: SeedQuizPack[] = [
     ],
   },
   {
+    id: 'logic-fundamentals',
+    icon: 'puzzlepiece',
+    color: '#8e8ef7',
+    isLocked: false,
+    title: 'Logic Fundamentals',
+    description: 'Core reasoning, truth tables, and flow correctness.',
+    difficulty: 'easy',
+    language: 'General',
+    category: 'Logic',
+    tags: ['Logic'],
+    snippets: [
+      {
+        id: 'logic-easy-1',
+        question: 'If A implies B and A is true, what can we conclude?',
+        code: 'A => B\nA === true\n// ?',
+        answers: [
+          { id: 'a', text: 'B must be true.' },
+          { id: 'b', text: 'B must be false.' },
+          { id: 'c', text: 'Nothing can be concluded.' },
+          { id: 'd', text: 'A becomes false.' },
+        ],
+        correctAnswerId: 'a',
+      },
+      {
+        id: 'logic-easy-2',
+        question: 'Which operator returns true only when both inputs are true?',
+        code: 'x /* ? */ y',
+        answers: [
+          { id: 'a', text: 'OR' },
+          { id: 'b', text: 'XOR' },
+          { id: 'c', text: 'AND' },
+          { id: 'd', text: 'NOT' },
+        ],
+        correctAnswerId: 'c',
+      },
+    ],
+  },
+  {
+    id: 'logic-patterns',
+    icon: 'function',
+    color: '#7676ef',
+    isLocked: false,
+    title: 'Logic Patterns',
+    description: 'Invariants, contradiction checks, and edge-case reasoning.',
+    difficulty: 'medium',
+    language: 'General',
+    category: 'Logic',
+    tags: ['Logic'],
+    snippets: [
+      {
+        id: 'logic-med-1',
+        question: 'Why is an invariant useful in a loop?',
+        code: 'while (...) {\n  // maintain invariant\n}',
+        answers: [
+          { id: 'a', text: 'It avoids writing tests.' },
+          { id: 'b', text: 'It helps prove correctness at each iteration.' },
+          { id: 'c', text: 'It guarantees O(1) runtime.' },
+          { id: 'd', text: 'It removes boundary conditions.' },
+        ],
+        correctAnswerId: 'b',
+      },
+      {
+        id: 'logic-med-2',
+        question: 'Which approach best validates assumptions in a complex branch?',
+        code: 'if (a) { ... } else if (b) { ... } else { ... }',
+        answers: [
+          { id: 'a', text: 'Skip impossible branches entirely.' },
+          { id: 'b', text: 'Assert preconditions and handle exhaustive cases.' },
+          { id: 'c', text: 'Use random defaults to continue execution.' },
+          { id: 'd', text: 'Merge all branches into one generic handler.' },
+        ],
+        correctAnswerId: 'b',
+      },
+    ],
+  },
+  {
     id: 'go-interfaces',
     icon: 'book',
     color: '#fb6192',
@@ -355,6 +451,7 @@ const baseQuizPacks: SeedQuizPack[] = [
       'C# syntax, async/await, and memory management fundamentals.',
     difficulty: 'easy',
     language: 'General',
+    category: '.NET',
     tags: ['.Net'],
     snippets: [
       {
@@ -382,6 +479,110 @@ const baseQuizPacks: SeedQuizPack[] = [
         correctAnswerId: 'c',
         explanation:
           'The async keyword allows await to be used in the method body and changes the return type semantics to Task/Task<T>. It does not by itself move work to a background thread.',
+      },
+      {
+        id: 'dotnet-2',
+        question: 'Which statement best describes using var in C#?',
+        code: 'var count = 42;',
+        answers: [
+          { id: 'a', text: 'var makes count dynamically typed at runtime.' },
+          { id: 'b', text: 'var infers the compile-time type from the assigned value.' },
+          { id: 'c', text: 'var can only be used for strings.' },
+          { id: 'd', text: 'var forces boxing for value types.' },
+        ],
+        correctAnswerId: 'b',
+        explanation:
+          'In C#, var performs compile-time type inference. count is still strongly typed (int in this case), not dynamic.',
+      },
+      {
+        id: 'dotnet-3',
+        question: 'What is the purpose of using in a C# statement like this?',
+        code: 'using var stream = new FileStream(path, FileMode.Open);',
+        answers: [
+          { id: 'a', text: 'It enables reflection on stream methods.' },
+          { id: 'b', text: 'It disposes resources automatically at scope end.' },
+          { id: 'c', text: 'It marks stream as immutable.' },
+          { id: 'd', text: 'It runs stream on a separate thread.' },
+        ],
+        correctAnswerId: 'b',
+        explanation:
+          'using ensures IDisposable resources are cleaned up deterministically, even when exceptions occur.',
+      },
+    ],
+  },
+  {
+    id: 'dotnet-async-pipelines',
+    icon: 'waveform.path.ecg',
+    color: '#f0a45c',
+    isLocked: true,
+    title: '.NET Async Pipelines',
+    description: 'CancellationToken, async streams, and resilient async workflows.',
+    difficulty: 'medium',
+    language: 'General',
+    category: '.NET',
+    tags: ['.Net'],
+    snippets: [
+      {
+        id: 'dotnet-async-1',
+        question: 'Why should API boundaries often accept a CancellationToken?',
+        code: 'public Task<Report> BuildAsync(Request req, CancellationToken ct)',
+        answers: [
+          { id: 'a', text: 'Only to improve IntelliSense hints.' },
+          { id: 'b', text: 'To support cooperative cancellation and prevent wasted work.' },
+          { id: 'c', text: 'To force method execution on a background thread.' },
+          { id: 'd', text: 'Because Task cannot be awaited without it.' },
+        ],
+        correctAnswerId: 'b',
+      },
+      {
+        id: 'dotnet-async-2',
+        question: 'What does await foreach iterate over?',
+        code: 'await foreach (var item in source) { /* ... */ }',
+        answers: [
+          { id: 'a', text: 'IEnumerable<T>' },
+          { id: 'b', text: 'IQueryable<T>' },
+          { id: 'c', text: 'IAsyncEnumerable<T>' },
+          { id: 'd', text: 'Task<T[]>' },
+        ],
+        correctAnswerId: 'c',
+      },
+    ],
+  },
+  {
+    id: 'dotnet-runtime-tradeoffs',
+    icon: 'cpu',
+    color: '#e6954b',
+    isLocked: true,
+    title: '.NET Runtime Trade-offs',
+    description: 'GC behavior, allocations, and performance-sensitive design.',
+    difficulty: 'hard',
+    language: 'General',
+    category: '.NET',
+    tags: ['.Net'],
+    snippets: [
+      {
+        id: 'dotnet-hard-1',
+        question: 'Why can frequent large object allocations degrade latency?',
+        code: 'var payload = new byte[200_000];',
+        answers: [
+          { id: 'a', text: 'They are always stack allocated.' },
+          { id: 'b', text: 'They can pressure the LOH and increase GC pause impact.' },
+          { id: 'c', text: 'They bypass the CLR type system.' },
+          { id: 'd', text: 'They disable JIT optimizations globally.' },
+        ],
+        correctAnswerId: 'b',
+      },
+      {
+        id: 'dotnet-hard-2',
+        question: 'When does ValueTask<T> make sense over Task<T>?',
+        code: 'public ValueTask<int> TryGetCachedAsync(string key)',
+        answers: [
+          { id: 'a', text: 'Always use ValueTask<T> because it is faster.' },
+          { id: 'b', text: 'When synchronous completion is common and allocation reduction matters.' },
+          { id: 'c', text: 'Only in ASP.NET controllers.' },
+          { id: 'd', text: 'Only when no await is used in the method body.' },
+        ],
+        correctAnswerId: 'b',
       },
     ],
   },
@@ -1283,8 +1484,14 @@ function rebalanceSnippetAnswerPositions(snippet: Snippet): Snippet {
 }
 
 function ensurePackHasMinimumSnippets(pack: SeedQuizPack): QuizPack {
+  const normalizedCategory =
+    pack.category ??
+    (pack.language === 'General'
+      ? 'Logic'
+      : pack.language);
   const normalizedPack: QuizPack = {
     ...pack,
+    category: normalizedCategory,
     snippets: pack.snippets.map((snippet) =>
       rebalanceSnippetAnswerPositions(ensureSnippetHasExplanation(snippet)),
     ),
@@ -1314,7 +1521,79 @@ function ensurePackHasMinimumSnippets(pack: SeedQuizPack): QuizPack {
   };
 }
 
-export const quizPacks: QuizPack[] = baseQuizPacks.map(ensurePackHasMinimumSnippets);
+function resolveSeedPackCategory(pack: Pick<SeedQuizPack, 'category' | 'language'>): string {
+  return pack.category ?? (pack.language === 'General' ? 'Logic' : pack.language);
+}
+
+function toSlug(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function createProgressionSeedPacks(packs: SeedQuizPack[]): SeedQuizPack[] {
+  const byCategory = new Map<string, SeedQuizPack[]>();
+
+  for (const pack of packs) {
+    const category = resolveSeedPackCategory(pack);
+    const bucket = byCategory.get(category) ?? [];
+    bucket.push(pack);
+    byCategory.set(category, bucket);
+  }
+
+  const pickSourcePack = (categoryPacks: SeedQuizPack[]): SeedQuizPack => {
+    return (
+      categoryPacks.find((pack) => pack.difficulty === 'hard') ??
+      categoryPacks.find((pack) => pack.difficulty === 'medium') ??
+      categoryPacks[0]
+    );
+  };
+
+  const createdPacks: SeedQuizPack[] = [];
+  const usedIds = new Set(packs.map((pack) => pack.id));
+  for (const [category, categoryPacks] of byCategory.entries()) {
+    const available = [...categoryPacks];
+
+    for (const difficulty of DIFFICULTY_ORDER) {
+      const alreadyExists = available.some((pack) => pack.difficulty === difficulty);
+      if (alreadyExists) continue;
+
+      const source = pickSourcePack(available);
+      const baseId = `${toSlug(category)}-${difficulty}`;
+      let generatedId = baseId;
+      let duplicateIndex = 2;
+      while (usedIds.has(generatedId)) {
+        generatedId = `${baseId}-${duplicateIndex}`;
+        duplicateIndex += 1;
+      }
+      usedIds.add(generatedId);
+
+      const generated: SeedQuizPack = {
+        ...source,
+        id: generatedId,
+        title: `${category} ${difficulty[0].toUpperCase()}${difficulty.slice(1)}`,
+        description: `High-complexity ${category} scenarios focused on ${difficulty}-level trade-offs.`,
+        difficulty,
+        isLocked: difficulty !== 'easy',
+        category,
+        tags: Array.from(new Set([...(source.tags ?? []), difficulty])),
+        snippets: [],
+      };
+      available.push(generated);
+      createdPacks.push(generated);
+    }
+  }
+
+  return createdPacks;
+}
+
+const allSeedQuizPacks: SeedQuizPack[] = [
+  ...baseQuizPacks,
+  ...createProgressionSeedPacks(baseQuizPacks),
+];
+
+export const quizPacks: QuizPack[] = allSeedQuizPacks.map(ensurePackHasMinimumSnippets);
 
 export const dailyChallenge: DailyChallenge = {
   id: 'daily-memory-leak',

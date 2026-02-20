@@ -11,6 +11,7 @@ type Tab = {
 
 const tabs: Tab[] = [
   { id: 'index', title: 'Home', icon: 'house' },
+  { id: 'path', title: 'Path', icon: 'map.fill' },
   { id: 'explore', title: 'Explore', icon: 'safari' },
   { id: 'profile', title: 'Profile', icon: 'person.circle' },
 ] as const;

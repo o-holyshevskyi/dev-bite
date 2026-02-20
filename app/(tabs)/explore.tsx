@@ -4,8 +4,9 @@ import Header from '@/components/tabs/explore/header';
 import SearchBar from '@/components/tabs/explore/search-bar';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol.ios';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ListRenderItem, StyleSheet, View } from 'react-native';
+import { ListRenderItem, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
     Extrapolation,
     interpolate,
@@ -14,8 +15,17 @@ import Animated, {
     useSharedValue
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { quizPacks } from '@/src/data/mockData';
+import { quizPacks, type Difficulty } from '@/src/data/mockData';
 import useUserStore from '@/store/userStore';
+const DIFFICULTY_ORDER: Difficulty[] = [
+    'easy',
+    'medium',
+    'hard',
+    'advanced',
+    'expert',
+    'master',
+    'principal',
+];
 
 interface Snippet {
     id: string,
@@ -28,18 +38,27 @@ export interface ExploreCard {
     id: string;
     icon: string;
 	color: string;
+    category: string;
     isLocked: boolean;
+    lockType?: 'pro' | 'progress';
+    lockReason?: string;
     title: string;
     snippets: Snippet[];
-    difficult: 'easy' | 'medium' | 'hard'
+    difficult: Difficulty
     progress: number;
 }
 
 export default function ExploreScreen() {
+    const router = useRouter();
+    const params = useLocalSearchParams<{ category?: string | string[]; difficulty?: string | string[] }>();
     const scrollY = useSharedValue(0);
     const insets = useSafeAreaInsets();
     const packProgress = useUserStore((state) => state.packProgress);
     const isPro = useUserStore((state) => state.isPro);
+    const selectedCategory = Array.isArray(params.category) ? params.category[0] : params.category;
+    const selectedDifficulty = Array.isArray(params.difficulty) ? params.difficulty[0] : params.difficulty;
+    const normalizedSelectedCategory = selectedCategory?.trim().toLowerCase() ?? '';
+    const normalizedSelectedDifficulty = selectedDifficulty?.trim().toLowerCase() ?? '';
 
     const HEADER_HEIGHT = 60 + insets.top;
 
@@ -55,14 +74,46 @@ export default function ExploreScreen() {
                 ? true
                 : pack.title.toLowerCase().includes(normalizedSearch) ||
                   (pack.description?.toLowerCase().includes(normalizedSearch) ?? false);
+            const matchesCategory = normalizedSelectedCategory.length === 0
+                ? true
+                : (pack.category ?? pack.language).trim().toLowerCase() === normalizedSelectedCategory;
+            const matchesDifficulty = normalizedSelectedDifficulty.length === 0
+                ? true
+                : pack.difficulty === normalizedSelectedDifficulty as Difficulty;
 
             const matchesChip = filterChip === 'All'
                 ? true
                 : pack.language === filterChip || pack.tags?.includes(filterChip) === true;
 
-            return matchesSearch && matchesChip;
+            return matchesSearch && matchesChip && matchesCategory && matchesDifficulty;
         });
-    }, [searchText, filterChip]);
+    }, [filterChip, normalizedSelectedCategory, normalizedSelectedDifficulty, searchText]);
+
+    const chapterProgress = useMemo(() => {
+        const map: Record<string, number> = {};
+
+        for (const pack of quizPacks) {
+            const category = (pack.category ?? pack.language).trim();
+            const key = `${category}:${pack.difficulty}`;
+            if (map[key] !== undefined) continue;
+
+            const packsInChapter = quizPacks.filter((candidate) =>
+                (candidate.category ?? candidate.language).trim().toLowerCase() === category.toLowerCase() &&
+                candidate.difficulty === pack.difficulty
+            );
+            const total = packsInChapter.reduce((sum, chapterPack) => sum + chapterPack.snippets.length, 0);
+            const completedSnippetIds = new Set<string>();
+
+            for (const chapterPack of packsInChapter) {
+                const progress = packProgress.find((item) => item.packId === chapterPack.id);
+                (progress?.completedSnippetIds ?? []).forEach((id) => completedSnippetIds.add(id));
+            }
+
+            map[key] = total > 0 ? (completedSnippetIds.size / total) * 100 : 0;
+        }
+
+        return map;
+    }, [packProgress]);
 
     const exploreCards: ExploreCard[] = useMemo(() =>
         filteredPacks.map((pack) => {
@@ -70,12 +121,31 @@ export default function ExploreScreen() {
             const completed = progressForPack?.completedSnippetIds.length ?? 0;
             const total = pack.snippets.length || 1;
             const progress = completed / total;
+            const category = (pack.category ?? pack.language).trim();
+            const currentDifficultyIndex = DIFFICULTY_ORDER.indexOf(pack.difficulty);
+            const previousDifficulty = currentDifficultyIndex > 0
+                ? DIFFICULTY_ORDER[currentDifficultyIndex - 1]
+                : null;
+            const previousProgress = previousDifficulty
+                ? chapterProgress[`${category}:${previousDifficulty}`] ?? 0
+                : 100;
+            const progressLocked = previousDifficulty ? previousProgress < 100 : false;
+            const proLocked = pack.isLocked && !isPro;
+            const lockType: ExploreCard['lockType'] | undefined = proLocked ? 'pro' : progressLocked ? 'progress' : undefined;
+            const lockReason = progressLocked
+                ? `Complete ${previousDifficulty?.toUpperCase()} chapter to unlock ${pack.difficulty.toUpperCase()}.`
+                : proLocked
+                    ? 'Unlock PRO to access this pack.'
+                    : undefined;
 
             return {
                 id: pack.id,
                 icon: pack.icon,
                 color: pack.color,
-                isLocked: pack.isLocked && !isPro,
+                category,
+                isLocked: proLocked || progressLocked,
+                lockType,
+                lockReason,
                 title: pack.title,
                 snippets: pack.snippets.map((snippet) => ({
                     id: snippet.id,
@@ -86,7 +156,7 @@ export default function ExploreScreen() {
                 difficult: pack.difficulty,
                 progress,
             };
-        }), [filteredPacks, isPro, packProgress]);
+        }), [chapterProgress, filteredPacks, isPro, packProgress]);
 
     const scrollHandler = useAnimatedScrollHandler((event) => {
         scrollY.value = event.contentOffset.y;
@@ -142,6 +212,27 @@ export default function ExploreScreen() {
                             onChangeText={setSearchText}
                             onClearText={() => setSearchText('')}
                         />
+                        {selectedCategory ? (
+                            <View style={styles.categoryPillRow}>
+                                <View style={styles.categoryPill}>
+                                    <IconSymbol name="map.fill" size={14} color="#d1d5db" />
+                                    <ThemedText style={styles.categoryPillText}>
+                                        {selectedCategory}
+                                    </ThemedText>
+                                    {selectedDifficulty ? (
+                                        <ThemedText style={styles.categoryPillDivider}>·</ThemedText>
+                                    ) : null}
+                                    {selectedDifficulty ? (
+                                        <ThemedText style={styles.categoryPillText}>
+                                            {selectedDifficulty.toUpperCase()}
+                                        </ThemedText>
+                                    ) : null}
+                                </View>
+                                <Pressable onPress={() => router.replace('/(tabs)/explore')}>
+                                    <ThemedText style={styles.categoryClearText}>Clear</ThemedText>
+                                </Pressable>
+                            </View>
+                        ) : null}
                         <FilterChips
                             chip={filterChip}
                             onChangeChip={setFilterChip}
@@ -188,5 +279,40 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontSize: 14,
         fontWeight: '600',
+    },
+    categoryPillRow: {
+        marginTop: 10,
+        marginBottom: 6,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 2,
+    },
+    categoryPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: '#3f3f46',
+        backgroundColor: '#18181b',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+    },
+    categoryPillText: {
+        color: '#d1d5db',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    categoryPillDivider: {
+        color: '#71717a',
+        fontSize: 12,
+        fontWeight: '700',
+        marginHorizontal: 2,
+    },
+    categoryClearText: {
+        color: '#9ca3af',
+        fontSize: 12,
+        fontWeight: '700',
     },
 });
