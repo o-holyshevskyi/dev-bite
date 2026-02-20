@@ -89,6 +89,10 @@ function categoryIcon(category: string): string {
   return 'sparkles';
 }
 
+/** Icon shown when the node is mastered (100%). */
+const MASTERED_ICON = 'star.fill';
+const MASTERED_ICON_COLOR = '#f5c453';
+
 function getCurvedDependencyPath(x1: number, y1: number, x2: number, y2: number): string {
   const controlX = (x1 + x2) / 2;
   const controlY = Math.min(y1, y2) - 90;
@@ -117,7 +121,9 @@ function PathNode({
   onPress,
 }: PathNodeProps) {
   const ringProgress = node.progress;
-  const iconTint = node.isAvailable ? '#f5f5f5' : '#7d7d7d';
+  const isMastered = node.isCompleted && ringProgress >= 100;
+  const iconName = isMastered ? MASTERED_ICON : categoryIcon(node.category);
+  const iconTint = isMastered ? MASTERED_ICON_COLOR : (node.isAvailable ? '#f5f5f5' : '#7d7d7d');
   const trackTint = node.isAvailable ? '#2b2b2b' : '#2f2f2f';
   const progressTint = levelColor;
   const fillTint = node.isAvailable ? '#0f0f0f' : '#1a1a1a';
@@ -203,7 +209,7 @@ function PathNode({
           </Svg>
 
           <View style={[styles.nodeCore, { backgroundColor: fillTint }]}>
-            <IconSymbol name={categoryIcon(node.category) as any} size={30} color={iconTint} />
+            <IconSymbol name={iconName as any} size={30} color={iconTint} />
             <ThemedText style={[styles.nodePercent, !node.isAvailable && styles.nodePercentLocked]}>
               {Math.round(ringProgress)}%
             </ThemedText>
