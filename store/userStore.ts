@@ -45,6 +45,7 @@ export type ThemePalette = 'default' | 'ocean' | 'mint' | 'dark-pro';
 export interface UserSettings {
   notificationsEnabled: boolean;
   hapticsEnabled: boolean;
+  soundsEnabled: boolean;
   /** @deprecated Use colorMode + themePalette. Kept for migration. */
   theme: 'dark' | 'light' | 'system';
   /** @deprecated Use colorMode + themePalette. Kept for migration. */
@@ -523,6 +524,7 @@ export interface UserStoreState {
     prefs: Partial<Pick<UserState, 'difficulty' | 'selectedStack'>>,
   ) => void;
   updateSettings: (newSettings: Partial<UserState['settings']>) => void;
+  toggleSounds: () => void;
   updateColorMode: (mode: ColorMode) => void;
   updateThemePalette: (palette: ThemePalette) => void;
   setStack: (stack: string[]) => void;
@@ -614,6 +616,7 @@ function createInitialUserData(): Pick<
     settings: {
       notificationsEnabled: true,
       hapticsEnabled: true,
+      soundsEnabled: true,
       theme: 'dark',
       colorMode: 'dark' as ColorMode,
       themePalette: 'default' as ThemePalette,
@@ -677,6 +680,13 @@ export const useUserStore = create<UserStoreState>()(
           settings: {
             ...state.settings,
             ...newSettings,
+          },
+        })),
+      toggleSounds: () =>
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            soundsEnabled: !state.settings.soundsEnabled,
           },
         })),
       updateColorMode: (mode) =>
@@ -1214,6 +1224,7 @@ export const useUserStore = create<UserStoreState>()(
             return {
               notificationsEnabled: true,
               hapticsEnabled: true,
+              soundsEnabled: prev.soundsEnabled ?? true,
               theme: 'dark',
               colorMode,
               themePalette,

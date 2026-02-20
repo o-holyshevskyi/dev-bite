@@ -13,6 +13,7 @@ import '../global.css';
 
 import { LevelCompleteModal } from '@/components/path/level-complete-modal';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { preloadSounds } from '@/src/services/audioService';
 import { requestPermissions, scheduleDailyReminder } from '@/src/utils/notifications';
 import { getEffectiveTheme } from '@/src/utils/theme';
 import useUserStore from '@/store/userStore';
@@ -81,6 +82,10 @@ export default function RootLayout() {
   useEffect(() => {
     Uniwind.setTheme(effectiveTheme);
   }, [effectiveTheme]);
+
+  useEffect(() => {
+    void preloadSounds();
+  }, []);
 
   useEffect(() => {
     const syncNotificationState = async () => {

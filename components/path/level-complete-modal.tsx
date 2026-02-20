@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol.ios';
+import { playSound } from '@/src/services/audioService';
 import useUserStore from '@/store/userStore';
 import { getLevelPerformance, type LevelPerformanceSummary } from '@/src/utils/learning-path';
 import * as Haptics from 'expo-haptics';
@@ -38,6 +39,7 @@ export function LevelCompleteModal({ level, onDismiss }: LevelCompleteModalProps
     if (hapticsEnabled) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
+    void playSound('level_up');
     const t = setTimeout(() => {
       confettiRef.current?.start();
     }, 100);

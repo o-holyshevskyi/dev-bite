@@ -304,6 +304,16 @@ const Preferences = () => {
             onSwitchChange={(val) => updateSettings({ hapticsEnabled: val })}
           />
           <PreferenceRow
+            iconName="speaker.wave.2"
+            label="Sound Effects"
+            iconColor={accent}
+            foreground={foreground}
+            muted={muted}
+            type="switch"
+            switchValue={settings.soundsEnabled}
+            onSwitchChange={(val) => updateSettings({ soundsEnabled: val })}
+          />
+          <PreferenceRow
             iconName="paintbrush.fill"
             label="Appearance"
             iconColor={accent}

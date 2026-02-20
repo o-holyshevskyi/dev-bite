@@ -5,6 +5,7 @@ import {
   getPackById,
   getSnippetWithPackById,
 } from '@/src/data/mockData';
+import { playSound } from '@/src/services/audioService';
 import useUserStore from '@/store/userStore';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -135,6 +136,7 @@ export default function QuizScreen() {
       if (hapticsEnabled) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
+      void playSound('success');
       setShowConfetti(true);
       setTimeout(() => confettiRef.current?.start(), 100);
       setTimeout(() => setShowConfetti(false), 3000);
@@ -142,6 +144,7 @@ export default function QuizScreen() {
       if (hapticsEnabled) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
+      void playSound('error');
     }
 
     setIsChecking(false);
