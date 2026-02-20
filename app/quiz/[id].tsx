@@ -49,6 +49,7 @@ export default function QuizScreen() {
   const ensureDailySet = useUserStore((s) => s.ensureDailySet);
   const submitDailyAnswer = useUserStore((s) => s.submitDailyAnswer);
   const markSnippetCompleted = useUserStore((s) => s.markSnippetCompleted);
+  const hapticsEnabled = useUserStore((s) => s.settings.hapticsEnabled);
 
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [status, setStatus] = useState<CheckStatus>('idle');
@@ -131,12 +132,16 @@ export default function QuizScreen() {
     }
 
     if (correct) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (hapticsEnabled) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       setShowConfetti(true);
       setTimeout(() => confettiRef.current?.start(), 100);
       setTimeout(() => setShowConfetti(false), 3000);
     } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (hapticsEnabled) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
     }
 
     setIsChecking(false);
@@ -149,6 +154,7 @@ export default function QuizScreen() {
     isPackMode,
     packSnippets,
     submitDailyAnswer,
+    hapticsEnabled,
   ]);
 
   useEffect(() => {

@@ -24,6 +24,7 @@ export function LevelCompleteModal({ level, onDismiss }: LevelCompleteModalProps
   const muted = useThemeColor('muted');
   const success = useThemeColor('success');
   const packProgress = useUserStore((state) => state.packProgress);
+  const hapticsEnabled = useUserStore((state) => state.settings.hapticsEnabled);
   const confettiRef = useRef<ConfettiCannon>(null);
 
   const isOpen = level !== null;
@@ -34,12 +35,14 @@ export function LevelCompleteModal({ level, onDismiss }: LevelCompleteModalProps
 
   useEffect(() => {
     if (!isOpen || !level) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (hapticsEnabled) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
     const t = setTimeout(() => {
       confettiRef.current?.start();
     }, 100);
     return () => clearTimeout(t);
-  }, [isOpen, level?.category, level?.difficulty]);
+  }, [isOpen, level?.category, level?.difficulty, hapticsEnabled]);
 
   const handleOpenChange = (open: boolean) => {
     if (!open) onDismiss();

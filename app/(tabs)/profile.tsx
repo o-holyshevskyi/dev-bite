@@ -38,6 +38,7 @@ export default function ProfileScreen() {
   const isPro = useUserStore((s) => s.isPro);
   const getCategoryProgress = useUserStore((s) => s.getCategoryProgress);
   const masteryInsight = useUserStore((s) => s.masteryInsight);
+  const hapticsEnabled = useUserStore((s) => s.settings.hapticsEnabled);
   const [isAchievementDialogOpen, setIsAchievementDialogOpen] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [dialogBadges, setDialogBadges] = useState<typeof unlockedBadges>([]);
@@ -99,11 +100,13 @@ export default function ProfileScreen() {
       hasShownThisFocusRef.current = true;
       markAchievementBadgesSeen(unseenUnlockedBadges.map((badge) => badge.id));
       setShowConfetti(true);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (hapticsEnabled) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       setTimeout(() => confettiRef.current?.start(), 120);
       setTimeout(() => setShowConfetti(false), 2800);
     }
-  }, [isFocused, unseenUnlockedBadges, markAchievementBadgesSeen]);
+  }, [isFocused, unseenUnlockedBadges, markAchievementBadgesSeen, hapticsEnabled]);
 
   return (
     <View style={[styles.container, { backgroundColor: '#000' }]}>
