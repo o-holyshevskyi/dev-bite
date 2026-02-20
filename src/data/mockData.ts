@@ -1602,6 +1602,34 @@ export const dailyChallenge: DailyChallenge = {
   snippetId: 'concurrency-1',
 };
 
+const DEFAULT_SESSION_SNIPPET_LIMIT = 25;
+
+function normalizeCategoryKey(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+export function getPackById(packId: string): QuizPack | null {
+  return quizPacks.find((pack) => pack.id === packId) ?? null;
+}
+
+export function getChapterSnippetSession(
+  stack: string,
+  level: Difficulty,
+  limit = DEFAULT_SESSION_SNIPPET_LIMIT,
+): { snippet: Snippet; pack: QuizPack }[] {
+  const normalizedStack = normalizeCategoryKey(stack);
+  if (!normalizedStack) return [];
+
+  return quizPacks
+    .filter(
+      (pack) =>
+        normalizeCategoryKey(pack.category ?? pack.language) === normalizedStack &&
+        pack.difficulty === level,
+    )
+    .flatMap((pack) => pack.snippets.map((snippet) => ({ snippet, pack })))
+    .slice(0, Math.max(0, limit));
+}
+
 /** Resolve a snippet by id and its pack. For use in quiz/[id] and elsewhere. */
 export function getSnippetWithPackById(snippetId: string): { snippet: Snippet; pack: QuizPack } | null {
   for (const pack of quizPacks) {

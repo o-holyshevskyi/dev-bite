@@ -416,7 +416,7 @@ export default function OnboardingScreen() {
                   Choose everything you want DevBite to focus on.
                 </Text>
                 <View style={styles.grid}>
-                  {['React', 'TypeScript', 'Python', 'Go'].map((stack) => {
+                  {['React', 'TypeScript', 'Python', 'Go', '.NET'].map((stack) => {
                     const isSelected = selectedStack.includes(stack);
                     return (
                       <Pressable

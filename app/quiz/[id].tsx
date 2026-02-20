@@ -1,11 +1,15 @@
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol.ios';
-import { getSnippetWithPackById } from '@/src/data/mockData';
+import {
+  getChapterSnippetSession,
+  getPackById,
+  getSnippetWithPackById,
+} from '@/src/data/mockData';
 import useUserStore from '@/store/userStore';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button, Dialog, Label, RadioGroup, useThemeColor } from 'heroui-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   Pressable,
@@ -58,6 +62,19 @@ export default function QuizScreen() {
   const currentPackId = typeof packId === 'string' && packId.length > 0 ? packId : null;
   const isPackMode = !!currentPackId;
   const requestedId = typeof id === 'string' ? id : null;
+  const selectedPack = useMemo(
+    () => (currentPackId ? getPackById(currentPackId) : null),
+    [currentPackId],
+  );
+  const chapterSession = useMemo(() => {
+    if (!selectedPack) return [];
+    const stack = selectedPack.category ?? selectedPack.language;
+    return getChapterSnippetSession(stack, selectedPack.difficulty, 25);
+  }, [selectedPack]);
+  const chapterSnippets = useMemo(
+    () => chapterSession.map((entry) => entry.snippet),
+    [chapterSession],
+  );
   const idFromSet = dailyState.questionIds[dailyState.currentIndex];
   const activeId =
     isPackMode
@@ -65,11 +82,23 @@ export default function QuizScreen() {
       : requestedId && dailyState.questionIds.includes(requestedId)
         ? requestedId
         : idFromSet;
-  const data = activeId ? getSnippetWithPackById(activeId) : null;
+  const activeChapterEntry = useMemo(() => {
+    if (!isPackMode || chapterSession.length === 0) return null;
+    if (!activeId) return chapterSession[0];
+    return (
+      chapterSession.find((entry) => entry.snippet.id === activeId) ??
+      chapterSession[0]
+    );
+  }, [activeId, chapterSession, isPackMode]);
+  const fallbackData = activeId ? getSnippetWithPackById(activeId) : null;
+  const data = isPackMode ? activeChapterEntry : fallbackData;
   const snippet = data?.snippet;
   const pack = data?.pack;
-  const packSnippets = pack?.snippets ?? [];
-  const currentPackSnippetIndex = packSnippets.findIndex((packSnippet) => packSnippet.id === activeId);
+  const activeQuestionId = isPackMode ? (activeChapterEntry?.snippet.id ?? null) : activeId;
+  const packSnippets = isPackMode ? chapterSnippets : pack?.snippets ?? [];
+  const currentPackSnippetIndex = packSnippets.findIndex(
+    (packSnippet) => packSnippet.id === activeQuestionId,
+  );
   const currentPackPosition =
     currentPackSnippetIndex >= 0 ? currentPackSnippetIndex + 1 : 0;
   const packProgressTotal = packSnippets.length;
@@ -83,19 +112,21 @@ export default function QuizScreen() {
   const isWrong = status === 'wrong';
 
   const handleCheck = useCallback(() => {
-    if (selectedOption === null || !snippet || !activeId) return;
+    if (selectedOption === null || !snippet || !activeQuestionId) return;
     setIsChecking(true);
     const correct = selectedOption === correctAnswerId;
     setStatus(correct ? 'correct' : 'wrong');
     if (isPackMode) {
-      const currentSnippetIndex = packSnippets.findIndex((packSnippet) => packSnippet.id === activeId);
+      const currentSnippetIndex = packSnippets.findIndex(
+        (packSnippet) => packSnippet.id === activeQuestionId,
+      );
       const nextSnippetId =
         currentSnippetIndex >= 0
           ? (packSnippets[currentSnippetIndex + 1]?.id ?? null)
           : null;
       setNextQuestionId(nextSnippetId);
     } else {
-      const submitResult = submitDailyAnswer(activeId, correct, selectedOption);
+      const submitResult = submitDailyAnswer(activeQuestionId, correct, selectedOption);
       setNextQuestionId(submitResult.nextQuestionId);
     }
 
@@ -113,7 +144,7 @@ export default function QuizScreen() {
   }, [
     selectedOption,
     snippet,
-    activeId,
+    activeQuestionId,
     correctAnswerId,
     isPackMode,
     packSnippets,
@@ -329,8 +360,14 @@ export default function QuizScreen() {
               onPress={() => {
                 setIsResultDialogOpen(false);
                 if (isPackMode) {
-                  if (currentPackId && activeId) {
-                    markSnippetCompleted(currentPackId, activeId, isCorrect, selectedOption ?? undefined);
+                  const activePackId = activeChapterEntry?.pack.id ?? currentPackId;
+                  if (activePackId && activeQuestionId) {
+                    markSnippetCompleted(
+                      activePackId,
+                      activeQuestionId,
+                      isCorrect,
+                      selectedOption ?? undefined,
+                    );
                   }
                   if (nextQuestionId) {
                     setSelectedOption(null);

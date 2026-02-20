@@ -37,6 +37,7 @@ export default function ProfileScreen() {
   const warning = useThemeColor('warning');
   const isPro = useUserStore((s) => s.isPro);
   const getCategoryProgress = useUserStore((s) => s.getCategoryProgress);
+  const masteryInsight = useUserStore((s) => s.masteryInsight);
   const [isAchievementDialogOpen, setIsAchievementDialogOpen] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [dialogBadges, setDialogBadges] = useState<typeof unlockedBadges>([]);
@@ -165,6 +166,19 @@ export default function ProfileScreen() {
               </View>
             ))}
           </View>
+        </View>
+        <View style={[styles.insightCard, { borderColor: warning + '38', backgroundColor: warning + '12' }]}>
+          <View style={styles.insightHeaderRow}>
+            <View style={styles.insightTitleRow}>
+              <IconSymbol name="brain.head.profile" size={18} color={warning} />
+              <ThemedText style={[styles.insightTitle, { color: foreground }]}>
+                Mastery Insight
+              </ThemedText>
+            </View>
+          </View>
+          <ThemedText style={[styles.insightText, { color: muted }]}>
+            {masteryInsight.summary}
+          </ThemedText>
         </View>
         <Badges />
         {isPro ? (
@@ -373,5 +387,32 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontSize: 11,
     fontFamily: 'JetBrainsMono_700Bold',
+  },
+  insightCard: {
+    marginTop: 14,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  insightHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  insightTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  insightTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  insightText: {
+    fontSize: 13,
+    lineHeight: 19,
   },
 });

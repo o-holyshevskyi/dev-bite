@@ -98,7 +98,7 @@ export const ExploreCardItem = ({ card }: ExploreCardProps) => {
                     <View style={{ backgroundColor: card.color + '40', borderRadius: 9999, width: 50, height: 50, alignItems: 'center', justifyContent: 'center' }}>
                         <IconSymbol name={card.icon as any} size={28} color={card.color} />
                     </View>
-                    {card.isLocked && !isPro && <IconSymbol name={'lock.fill'} size={24} color={muted + '80'} />}
+                    {card.lockType === 'pro' && <IconSymbol name={'lock.fill'} size={24} color={muted + '80'} />}
                 </Card.Header>
                 <Card.Body style={{ marginTop: 12, minHeight: 75 }}>
                     <ThemedText

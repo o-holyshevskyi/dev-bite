@@ -1,6 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol.ios';
-import { quizPacks } from '@/src/data/mockData';
+import { getChapterSnippetSession, quizPacks } from '@/src/data/mockData';
 import useUserStore from '@/store/userStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button, Card, useThemeColor } from 'heroui-native';
@@ -47,7 +47,10 @@ export default function PackDetailScreen() {
     );
   }
 
-  const totalSnippets = pack.snippets.length || 1;
+  const stack = pack.category ?? pack.language;
+  const chapterSession = getChapterSnippetSession(stack, pack.difficulty, 25);
+  const sessionSnippets = chapterSession.map((entry) => entry.snippet);
+  const totalSnippets = sessionSnippets.length || 1;
   const completedSnippetIds = progressForPack?.completedSnippetIds ?? [];
   const incorrectSnippetIds = progressForPack?.incorrectSnippetIds ?? [];
   const completedCount = completedSnippetIds.length;
@@ -56,10 +59,10 @@ export default function PackDetailScreen() {
 
   const ctaLabel =
     completion >= 1 ? 'Practice Again' : completion > 0 ? 'Resume Pack' : 'Start Pack';
-  const nextSnippet = pack.snippets.find(
+  const nextSnippet = sessionSnippets.find(
     (snippet) => !completedSnippetIds.includes(snippet.id),
   );
-  const targetSnippetId = nextSnippet?.id ?? pack.snippets[0]?.id;
+  const targetSnippetId = nextSnippet?.id ?? sessionSnippets[0]?.id;
 
   const handleStartPackPress = () => {
     if (!targetSnippetId) return;
@@ -87,13 +90,20 @@ export default function PackDetailScreen() {
       >
         <Card style={[styles.heroCard, { borderColor: pack.color + '40' }]}>
           <Card.Header>
-            <View
-              style={[
-                styles.iconContainer,
-                { backgroundColor: pack.color + '30', borderColor: pack.color + '55' },
-              ]}
-            >
-              <IconSymbol name={pack.icon as any} size={30} color={pack.color} />
+            <View style={styles.heroHeaderRow}>
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: pack.color + '30', borderColor: pack.color + '55' },
+                ]}
+              >
+                <IconSymbol name={pack.icon as any} size={30} color={pack.color} />
+              </View>
+              <View style={[styles.levelBadge, { borderColor: pack.color + '70', backgroundColor: pack.color + '20' }]}>
+                <ThemedText style={[styles.levelBadgeText, { color: pack.color }]}>
+                  {pack.difficulty.toUpperCase()}
+                </ThemedText>
+              </View>
             </View>
           </Card.Header>
           <Card.Body style={styles.heroBody}>
@@ -129,7 +139,7 @@ export default function PackDetailScreen() {
             Curriculum
           </ThemedText>
           <View style={styles.snippetList}>
-            {pack.snippets.map((snippet, index) => {
+            {sessionSnippets.map((snippet, index) => {
               const isCompleted = completedSnippetIds.includes(snippet.id);
               const isIncorrect = !isCompleted && incorrectSnippetIds.includes(snippet.id);
               const statusIcon = isCompleted
@@ -246,6 +256,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.02)',
     borderWidth: 1,
   },
+  heroHeaderRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   iconContainer: {
     width: 62,
     height: 62,
@@ -266,6 +282,18 @@ const styles = StyleSheet.create({
   packDescription: {
     fontSize: 15,
     lineHeight: 21,
+  },
+  levelBadge: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  levelBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
   heroFooter: {
     marginTop: 10,

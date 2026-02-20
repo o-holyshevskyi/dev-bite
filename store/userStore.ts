@@ -10,6 +10,10 @@ import {
   topicMastery,
   type Difficulty,
 } from '@/src/data/mockData';
+import {
+  getCurrentDifficultyForCategory,
+  isPackInCurrentLearningLevel,
+} from '@/src/utils/learning-path';
 import { scheduleDailyReminder } from '@/src/utils/notifications';
 import { getCurrentLevelBounds, getRankNameFromLevel } from '@/src/utils/rank';
 
@@ -60,10 +64,55 @@ export type ActivityEntry = {
   userAnswerId?: string;
 };
 
+export type MasteryInsight = {
+  summary: string;
+  focusCategory: string | null;
+  focusDifficulty: Difficulty | null;
+  strugglingConcept: string | null;
+  failureRate: number;
+  generatedAt: number;
+};
+
+export type PortableUserState = Pick<
+  UserStoreState,
+  | 'profile'
+  | 'stats'
+  | 'rank'
+  | 'topicMastery'
+  | 'packProgress'
+  | 'isPro'
+  | 'isOnboardingCompleted'
+  | 'selectedStack'
+  | 'difficulty'
+  | 'solvedDailyIds'
+  | 'correctlySolvedDailyIds'
+  | 'lastStreakDate'
+  | 'dailyState'
+  | 'activityLog'
+  | 'shownAchievementBadgeIds'
+  | 'settings'
+>;
+
+export type PortableBackupFile = {
+  schemaVersion: number;
+  exportedAt: string;
+  appVersion: number;
+  data: PortableUserState;
+};
+
 export type StreakStatus = 'safe' | 'atRisk' | 'lost';
 
 const XP_BY_INDEX = [10, 20, 30] as const;
 const PERFECT_SET_BONUS = 50;
+const PORTABLE_BACKUP_SCHEMA_VERSION = 1;
+const MIN_ATTEMPTS_FOR_INSIGHT = 3;
+const CONCEPT_PATTERNS: Array<{ label: string; patterns: RegExp[] }> = [
+  { label: 'asynchronous concepts', patterns: [/\basync\b/i, /\bawait\b/i, /\bpromise\b/i, /\bconcurr/i] },
+  { label: 'type systems', patterns: [/\bgeneric/i, /\btype\b/i, /\binterface\b/i, /\bunion\b/i, /\binfer\b/i] },
+  { label: 'state management', patterns: [/\bstate\b/i, /\breducer\b/i, /\bhook/i, /\bstore\b/i, /\bcontext\b/i] },
+  { label: 'performance optimization', patterns: [/\bperformance\b/i, /\bcache\b/i, /\bmemo/i, /\blatency\b/i, /\bmemory\b/i] },
+  { label: 'data flow', patterns: [/\bapi\b/i, /\brequest\b/i, /\bresponse\b/i, /\bserialize\b/i, /\bjson\b/i] },
+];
 
 const LEVEL_TO_DIFFICULTY: Record<string, Difficulty> = {
   Junior: 'easy',
@@ -244,6 +293,188 @@ function ensurePackProgressEntries(progress: PackProgress[] | undefined): PackPr
   });
 }
 
+function sanitizePackProgressEntries(progress: PackProgress[] | undefined): PackProgress[] {
+  const seeded = ensurePackProgressEntries(progress);
+  return seeded.map((entry) => ({
+    packId: entry.packId,
+    completedSnippetIds: Array.from(new Set(entry.completedSnippetIds ?? [])),
+    incorrectSnippetIds: Array.from(new Set(entry.incorrectSnippetIds ?? [])),
+  }));
+}
+
+function sanitizeActivityLogEntries(entries: ActivityEntry[] | undefined): ActivityEntry[] {
+  if (!entries || entries.length === 0) return [];
+  return entries
+    .filter((entry) => !!entry && typeof entry.id === 'string' && typeof entry.timestamp === 'number')
+    .map((entry) => ({
+      id: entry.id,
+      type: (entry.type === 'pack' ? 'pack' : 'daily') as ActivityEntry['type'],
+      title: entry.title ?? '',
+      xpGained: Number.isFinite(entry.xpGained) ? entry.xpGained : 0,
+      timestamp: entry.timestamp,
+      snippetId: entry.snippetId,
+      userAnswerId: entry.userAnswerId,
+    }))
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 500);
+}
+
+function getPortableStateSnapshot(state: UserStoreState): PortableUserState {
+  return {
+    profile: state.profile,
+    stats: state.stats,
+    rank: state.rank,
+    topicMastery: state.topicMastery,
+    packProgress: state.packProgress,
+    isPro: state.isPro,
+    isOnboardingCompleted: state.isOnboardingCompleted,
+    selectedStack: state.selectedStack,
+    difficulty: state.difficulty,
+    solvedDailyIds: state.solvedDailyIds,
+    correctlySolvedDailyIds: state.correctlySolvedDailyIds,
+    lastStreakDate: state.lastStreakDate,
+    dailyState: state.dailyState,
+    activityLog: state.activityLog,
+    shownAchievementBadgeIds: state.shownAchievementBadgeIds,
+    settings: state.settings,
+  };
+}
+
+function normalizeImportedPortableState(payload: unknown): PortableUserState | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const dataRoot = payload as Partial<PortableBackupFile> & { data?: PortableUserState };
+  const rawData =
+    dataRoot.data && typeof dataRoot.data === 'object'
+      ? dataRoot.data
+      : (payload as Partial<PortableUserState>);
+  if (!rawData || typeof rawData !== 'object') return null;
+
+  const defaults = createInitialUserData();
+  const rawRankXp =
+    typeof (rawData.rank as Partial<typeof initialRank> | undefined)?.xp === 'number'
+      ? (rawData.rank as Partial<typeof initialRank>).xp!
+      : defaults.rank.xp;
+  const normalizedRank = getNormalizedRankFromXp(initialRank, rawRankXp);
+  const packProgress = sanitizePackProgressEntries(rawData.packProgress);
+  const activityLog = sanitizeActivityLogEntries(rawData.activityLog);
+
+  return {
+    profile: {
+      ...defaults.profile,
+      ...(rawData.profile ?? {}),
+    },
+    stats: {
+      ...defaults.stats,
+      ...(rawData.stats ?? {}),
+    },
+    rank: {
+      ...normalizedRank,
+      ...(rawData.rank ?? {}),
+      ...normalizedRank,
+    },
+    topicMastery: rawData.topicMastery ?? defaults.topicMastery,
+    packProgress,
+    isPro: rawData.isPro ?? defaults.isPro,
+    isOnboardingCompleted: rawData.isOnboardingCompleted ?? defaults.isOnboardingCompleted,
+    selectedStack: rawData.selectedStack ?? defaults.selectedStack,
+    difficulty: rawData.difficulty ?? defaults.difficulty,
+    solvedDailyIds: rawData.solvedDailyIds ?? defaults.solvedDailyIds,
+    correctlySolvedDailyIds:
+      rawData.correctlySolvedDailyIds ?? defaults.correctlySolvedDailyIds,
+    lastStreakDate: rawData.lastStreakDate ?? defaults.lastStreakDate,
+    dailyState: rawData.dailyState ?? defaults.dailyState,
+    activityLog,
+    shownAchievementBadgeIds:
+      rawData.shownAchievementBadgeIds ?? defaults.shownAchievementBadgeIds,
+    settings: {
+      ...defaults.settings,
+      ...(rawData.settings ?? {}),
+    },
+  };
+}
+
+function getPreviousDifficulty(difficulty: Difficulty): Difficulty {
+  const index = DIFFICULTY_ORDER.indexOf(difficulty);
+  if (index <= 0) return difficulty;
+  return DIFFICULTY_ORDER[index - 1];
+}
+
+function createDefaultMasteryInsight(): MasteryInsight {
+  return {
+    summary: 'Keep practicing to unlock your first Mastery Insight.',
+    focusCategory: null,
+    focusDifficulty: null,
+    strugglingConcept: null,
+    failureRate: 0,
+    generatedAt: Date.now(),
+  };
+}
+
+function buildMasteryInsight(
+  activityLog: ActivityEntry[],
+  packProgress: PackProgress[],
+): MasteryInsight {
+  if (activityLog.length === 0) return createDefaultMasteryInsight();
+  const attemptsByKey = new Map<string, { category: string; difficulty: Difficulty; attempts: number; failures: number }>();
+  const conceptFailures = new Map<string, number>();
+
+  for (const entry of activityLog) {
+    if (!entry.snippetId) continue;
+    const resolved = getSnippetWithPackById(entry.snippetId);
+    if (!resolved) continue;
+
+    const category = resolved.pack.category ?? resolved.pack.language;
+    const difficulty = resolved.pack.difficulty;
+    const key = `${category}:${difficulty}`;
+    const bucket = attemptsByKey.get(key) ?? { category, difficulty, attempts: 0, failures: 0 };
+    bucket.attempts += 1;
+
+    const isFailure = entry.title.includes('Incorrect') || entry.title.includes('Attempted');
+    if (isFailure) {
+      bucket.failures += 1;
+      const source = `${resolved.pack.title} ${(resolved.pack.tags ?? []).join(' ')} ${resolved.snippet.question} ${resolved.snippet.code}`;
+      for (const concept of CONCEPT_PATTERNS) {
+        if (concept.patterns.some((pattern) => pattern.test(source))) {
+          conceptFailures.set(concept.label, (conceptFailures.get(concept.label) ?? 0) + 1);
+        }
+      }
+    }
+    attemptsByKey.set(key, bucket);
+  }
+
+  const candidates = [...attemptsByKey.values()].filter((item) => item.attempts >= MIN_ATTEMPTS_FOR_INSIGHT);
+  if (candidates.length === 0) {
+    return {
+      ...createDefaultMasteryInsight(),
+      summary: 'Great consistency. Complete a few more attempts to unlock deeper Mastery Insights.',
+    };
+  }
+
+  candidates.sort((a, b) => {
+    const aRate = a.failures / a.attempts;
+    const bRate = b.failures / b.attempts;
+    if (bRate !== aRate) return bRate - aRate;
+    return b.attempts - a.attempts;
+  });
+
+  const focus = candidates[0];
+  const failureRate = focus.failures / Math.max(1, focus.attempts);
+  const strugglingConcept =
+    [...conceptFailures.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'core concepts';
+  const currentDifficulty =
+    getCurrentDifficultyForCategory(focus.category, packProgress) ?? focus.difficulty;
+  const suggestedDifficulty = getPreviousDifficulty(currentDifficulty);
+
+  return {
+    summary: `Your ${focus.category} is at ${currentDifficulty.toUpperCase()} level, but you're struggling with ${strugglingConcept}. We recommend revisiting ${suggestedDifficulty.toUpperCase()}/${strugglingConcept} snippets.`,
+    focusCategory: focus.category,
+    focusDifficulty: currentDifficulty,
+    strugglingConcept,
+    failureRate,
+    generatedAt: Date.now(),
+  };
+}
+
 export interface UserStoreState {
   profile: UserProfile;
   stats: UserStats;
@@ -262,6 +493,7 @@ export interface UserStoreState {
   lastStreakDate: string | null;
   dailyState: DailyState;
   activityLog: ActivityEntry[];
+  masteryInsight: MasteryInsight;
   shownAchievementBadgeIds: string[];
   settings: UserSettings;
   resetStore: () => void;
@@ -292,6 +524,8 @@ export interface UserStoreState {
   syncStreakIntegrity: () => void;
   markAchievementBadgesSeen: (badgeIds: string[]) => void;
   logActivity: (entry: Omit<ActivityEntry, 'id' | 'timestamp'>) => void;
+  getPortableBackup: () => PortableBackupFile;
+  importPortableBackup: (payload: unknown) => { ok: boolean; message: string };
   ensureDailySet: () => void;
   submitDailyAnswer: (
     questionId: string,
@@ -335,8 +569,10 @@ function createInitialUserData(): Pick<
   | 'lastStreakDate'
   | 'dailyState'
   | 'activityLog'
+  | 'masteryInsight'
   | 'shownAchievementBadgeIds'
 > {
+  const packProgress = ensurePackProgressEntries([]);
   return {
     profile: {
       name: 'Alex Chen',
@@ -351,7 +587,7 @@ function createInitialUserData(): Pick<
     },
     rank: { ...initialRank },
     topicMastery: cloneTopicMasteryDefaults(),
-    packProgress: ensurePackProgressEntries([]),
+    packProgress,
     isPro: false,
     isOnboardingCompleted: false,
     selectedStack: [],
@@ -366,6 +602,7 @@ function createInitialUserData(): Pick<
     lastStreakDate: null,
     dailyState: createInitialDailyState(),
     activityLog: [],
+    masteryInsight: buildMasteryInsight([], packProgress),
     shownAchievementBadgeIds: [],
   };
 }
@@ -480,6 +717,10 @@ export const useUserStore = create<UserStoreState>()(
       markSnippetCompleted: (packId, snippetId, wasCorrect, userAnswerId) => {
         const state = get();
         const normalizedPackProgress = ensurePackProgressEntries(state.packProgress);
+        const isCurrentLearningLevel = isPackInCurrentLearningLevel(
+          packId,
+          normalizedPackProgress,
+        );
         const hasPackEntry = normalizedPackProgress.some((p) => p.packId === packId);
         const baseProgress = hasPackEntry
           ? normalizedPackProgress
@@ -492,29 +733,31 @@ export const useUserStore = create<UserStoreState>()(
         const isFirstTimeCompletion = !alreadyCompleted;
         const alreadyIncorrect = existing?.incorrectSnippetIds.includes(snippetId);
 
-        const updatedPackProgress = baseProgress.map((p) => {
-          if (p.packId !== packId) return p;
+        const updatedPackProgress = !isCurrentLearningLevel
+          ? baseProgress
+          : baseProgress.map((p) => {
+              if (p.packId !== packId) return p;
 
-          if (wasCorrect) {
-            return {
-              ...p,
-              completedSnippetIds: alreadyCompleted
-                ? p.completedSnippetIds
-                : [...p.completedSnippetIds, snippetId],
-              incorrectSnippetIds: p.incorrectSnippetIds.filter((id) => id !== snippetId),
-            };
-          }
+              if (wasCorrect) {
+                return {
+                  ...p,
+                  completedSnippetIds: alreadyCompleted
+                    ? p.completedSnippetIds
+                    : [...p.completedSnippetIds, snippetId],
+                  incorrectSnippetIds: p.incorrectSnippetIds.filter((id) => id !== snippetId),
+                };
+              }
 
-          return {
-            ...p,
-            completedSnippetIds: p.completedSnippetIds,
-            incorrectSnippetIds: alreadyIncorrect
-              ? p.incorrectSnippetIds
-              : [...p.incorrectSnippetIds, snippetId],
-          };
-        });
+              return {
+                ...p,
+                completedSnippetIds: p.completedSnippetIds,
+                incorrectSnippetIds: alreadyIncorrect
+                  ? p.incorrectSnippetIds
+                  : [...p.incorrectSnippetIds, snippetId],
+              };
+            });
 
-        const shouldAwardPracticeXp = wasCorrect && isFirstTimeCompletion;
+        const shouldAwardPracticeXp = wasCorrect && isFirstTimeCompletion && isCurrentLearningLevel;
         const solvedDelta = shouldAwardPracticeXp ? 1 : 0;
         const practiceXpGain = shouldAwardPracticeXp ? 5 : 0;
         const nextRank =
@@ -530,6 +773,7 @@ export const useUserStore = create<UserStoreState>()(
             accuracy: state.stats.accuracy,
           },
           packProgress: updatedPackProgress,
+          masteryInsight: buildMasteryInsight(state.activityLog, updatedPackProgress),
         });
 
         get().logActivity({
@@ -555,16 +799,50 @@ export const useUserStore = create<UserStoreState>()(
       },
       logActivity: (entry) => {
         const now = Date.now();
-        set((state) => ({
-          activityLog: [
-            {
-              ...entry,
-              id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
-              timestamp: now,
-            },
-            ...state.activityLog,
-          ].slice(0, 50),
-        }));
+        set((state) => {
+          const nextEntry = {
+            ...entry,
+            id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+            timestamp: now,
+          };
+          const nextActivityLog = [nextEntry, ...state.activityLog].slice(0, 50);
+          return {
+            activityLog: nextActivityLog,
+            masteryInsight: buildMasteryInsight(
+              nextActivityLog,
+              state.packProgress,
+            ),
+          };
+        });
+      },
+      getPortableBackup: () => {
+        const snapshot = getPortableStateSnapshot(get());
+        return {
+          schemaVersion: PORTABLE_BACKUP_SCHEMA_VERSION,
+          exportedAt: new Date().toISOString(),
+          appVersion: 8,
+          data: snapshot,
+        };
+      },
+      importPortableBackup: (payload) => {
+        const normalized = normalizeImportedPortableState(payload);
+        if (!normalized) {
+          return {
+            ok: false,
+            message: 'Invalid backup file format.',
+          };
+        }
+        set({
+          ...normalized,
+          masteryInsight: buildMasteryInsight(
+            normalized.activityLog,
+            normalized.packProgress,
+          ),
+        });
+        return {
+          ok: true,
+          message: 'Backup imported successfully.',
+        };
       },
       incrementStreak: () => {
         const state = get();
@@ -678,9 +956,13 @@ export const useUserStore = create<UserStoreState>()(
         nextResults[safeIndex] = isCorrect ? 1 : 2;
         const resolved = getSnippetWithPackById(questionId);
         const packId = resolved?.pack.id ?? null;
+        const isCurrentLearningLevel =
+          packId !== null
+            ? isPackInCurrentLearningLevel(packId, normalizedPackProgress)
+            : false;
 
         const nextPackProgress =
-          packId === null
+          packId === null || !isCurrentLearningLevel
             ? normalizedPackProgress
             : normalizedPackProgress.map((pack) => {
                 if (pack.packId !== packId) return pack;
@@ -736,6 +1018,7 @@ export const useUserStore = create<UserStoreState>()(
           snippetId: questionId,
           userAnswerId,
         });
+        const activityLogWithCurrentEntry = get().activityLog;
 
         if (!completed) {
           set({
@@ -743,6 +1026,10 @@ export const useUserStore = create<UserStoreState>()(
             solvedDailyIds: solvedIds,
             correctlySolvedDailyIds: correctlySolvedIds,
             packProgress: nextPackProgress,
+            masteryInsight: buildMasteryInsight(
+              activityLogWithCurrentEntry,
+              nextPackProgress,
+            ),
             stats: {
               ...state.stats,
               solved: nextSolved,
@@ -779,6 +1066,10 @@ export const useUserStore = create<UserStoreState>()(
           solvedDailyIds: solvedIds,
           correctlySolvedDailyIds: correctlySolvedIds,
           packProgress: nextPackProgress,
+          masteryInsight: buildMasteryInsight(
+            activityLogWithCurrentEntry,
+            nextPackProgress,
+          ),
           stats: {
             ...state.stats,
             solved: nextSolved,
@@ -815,7 +1106,7 @@ export const useUserStore = create<UserStoreState>()(
     {
       name: 'user-store',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 6,
+      version: 8,
       migrate: (persistedState: unknown) => {
         const state = (persistedState ?? {}) as Partial<UserStoreState> & {
           rank?: Partial<typeof initialRank>;
@@ -824,6 +1115,8 @@ export const useUserStore = create<UserStoreState>()(
           typeof state.rank?.xp === 'number' ? state.rank.xp : initialRank.xp;
         const normalizedRank = getNormalizedRankFromXp(initialRank, persistedXp);
 
+        const normalizedPackProgress = sanitizePackProgressEntries(state.packProgress);
+        const normalizedActivityLog = sanitizeActivityLogEntries(state.activityLog);
         return {
           ...state,
           rank: {
@@ -831,9 +1124,13 @@ export const useUserStore = create<UserStoreState>()(
             ...(state.rank ?? {}),
             ...normalizedRank,
           },
-          packProgress: ensurePackProgressEntries(state.packProgress),
+          packProgress: normalizedPackProgress,
           correctlySolvedDailyIds: state.correctlySolvedDailyIds ?? [],
-          activityLog: state.activityLog ?? [],
+          activityLog: normalizedActivityLog,
+          masteryInsight: buildMasteryInsight(
+            normalizedActivityLog,
+            normalizedPackProgress,
+          ),
           shownAchievementBadgeIds: state.shownAchievementBadgeIds ?? [],
           settings: {
             notificationsEnabled: true,
@@ -858,6 +1155,7 @@ export const useUserStore = create<UserStoreState>()(
         lastStreakDate: state.lastStreakDate,
         dailyState: state.dailyState,
         activityLog: state.activityLog,
+        masteryInsight: state.masteryInsight,
         shownAchievementBadgeIds: state.shownAchievementBadgeIds,
         settings: state.settings,
       }),

@@ -3,7 +3,10 @@ import { IconSymbol } from "@/components/ui/icon-symbol.ios";
 import { useUserStore } from "@/store/userStore";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from "expo-constants";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Notifications from "expo-notifications";
+import * as Sharing from "expo-sharing";
 import { useRouter } from "expo-router";
 import { Card, useThemeColor } from "heroui-native";
 import { Alert, Pressable, StyleSheet, Switch, View } from "react-native";
@@ -19,6 +22,8 @@ const Preferences = () => {
   const accent = useThemeColor("accent");
   const router = useRouter();
   const resetStore = useUserStore((state) => state.resetStore);
+  const getPortableBackup = useUserStore((state) => state.getPortableBackup);
+  const importPortableBackup = useUserStore((state) => state.importPortableBackup);
   const difficulty = useUserStore((state) => state.difficulty);
   const settings = useUserStore((state) => state.settings);
   const updatePreferences = useUserStore((state) => state.updatePreferences);
@@ -76,6 +81,58 @@ const Preferences = () => {
     }
   };
 
+  const handleExportDataPress = async () => {
+    try {
+      const backup = getPortableBackup();
+      const fileName = `devbite-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(
+        fileUri,
+        JSON.stringify(backup, null, 2),
+        { encoding: FileSystem.EncodingType.UTF8 },
+      );
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        Alert.alert("Backup created", `Backup was created at:\n${fileUri}`);
+        return;
+      }
+
+      await Sharing.shareAsync(fileUri, {
+        mimeType: "application/json",
+        dialogTitle: "Export DevBite backup",
+        UTI: "public.json",
+      });
+    } catch {
+      Alert.alert("Export failed", "Unable to export backup right now. Please try again.");
+    }
+  };
+
+  const handleImportDataPress = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "application/json",
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+      const picked = result.assets[0];
+      if (!picked?.uri) return;
+
+      const fileContent = await FileSystem.readAsStringAsync(picked.uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      const parsed = JSON.parse(fileContent);
+      const importResult = importPortableBackup(parsed);
+      if (!importResult.ok) {
+        Alert.alert("Import failed", importResult.message);
+        return;
+      }
+      Alert.alert("Import complete", "Your progress backup has been restored.");
+    } catch {
+      Alert.alert("Import failed", "Selected file is invalid or unreadable.");
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Card
@@ -123,6 +180,22 @@ const Preferences = () => {
             iconColor={accent}
             foreground={foreground}
             muted={muted}
+          />
+          <PreferenceRow
+            iconName="square.and.arrow.up"
+            label="Export Data"
+            iconColor={accent}
+            foreground={foreground}
+            muted={muted}
+            onPress={handleExportDataPress}
+          />
+          <PreferenceRow
+            iconName="square.and.arrow.down"
+            label="Import Data"
+            iconColor={accent}
+            foreground={foreground}
+            muted={muted}
+            onPress={handleImportDataPress}
           />
           <PreferenceRow
             iconName="arrow.turn.down.left"

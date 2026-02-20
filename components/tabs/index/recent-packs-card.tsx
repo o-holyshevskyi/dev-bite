@@ -12,7 +12,7 @@ import Animated, {
     withSpring,
     withTiming
 } from "react-native-reanimated";
-import { quizPacks } from "@/src/data/mockData";
+import { getCurrentLearningPacks } from "@/src/utils/learning-path";
 import useUserStore from "@/store/userStore";
 
 const RecentPacksCard = () => {
@@ -27,7 +27,8 @@ const RecentPacksCard = () => {
         router.push('/(tabs)/explore');
     }
 
-    const packs = quizPacks.map((pack) => {
+    const currentLearningPacks = getCurrentLearningPacks(packProgress);
+    const packs = currentLearningPacks.map((pack) => {
         const progressForPack = packProgress.find((p) => p.packId === pack.id);
         const completed = progressForPack?.completedSnippetIds.length ?? 0;
         const total = pack.snippets.length || 1;
