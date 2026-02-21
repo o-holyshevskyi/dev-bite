@@ -4,7 +4,7 @@
     "slug": "DevBite",
     "version": "1.0.40",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/ios-icon.png",
     "scheme": "devbite",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
