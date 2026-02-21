@@ -68,8 +68,6 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@testing-library/jest-native": "^5.4.3",
-    "@testing-library/react-native": "^12.4.3",
     "@types/jest": "^29.5.12",
     "@types/react": "~19.1.0",
     "@types/react-syntax-highlighter": "^15.5.13",
