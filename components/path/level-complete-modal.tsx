@@ -63,7 +63,7 @@ export function LevelCompleteModal({ level, onDismiss }: LevelCompleteModalProps
           autoStart={false}
         />
       )}
-      <Dialog isOpen={isOpen} onOpenChange={handleOpenChange}>
+      <Dialog isOpen={isOpen} onOpenChange={handleOpenChange} testID="level-complete-modal">
         <Dialog.Portal>
           <Dialog.Overlay />
           <Dialog.Content>
