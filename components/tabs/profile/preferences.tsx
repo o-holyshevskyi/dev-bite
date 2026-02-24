@@ -9,12 +9,15 @@ import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
 import * as Sharing from "expo-sharing";
 import { useRouter } from "expo-router";
-import { Card, useThemeColor } from "heroui-native";
+import { useThemeColor } from "heroui-native";
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { useEffect, useState } from "react";
 import Animated, {
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { Uniwind } from "uniwind";
 import { getEffectiveTheme } from "@/src/utils/theme";
@@ -96,6 +99,112 @@ function ThemeSwatch({
   );
 }
 
+type AccordionItemProps = {
+  id: string;
+  title: string;
+  iconName?: string;
+  expanded: boolean;
+  onToggle: (id: string) => void;
+  hapticsEnabled: boolean;
+  foreground: string;
+  muted: string;
+  accent: string;
+  children: React.ReactNode;
+};
+
+function AccordionItem({
+  id,
+  title,
+  iconName,
+  expanded,
+  onToggle,
+  hapticsEnabled,
+  foreground,
+  muted,
+  accent,
+  children,
+}: AccordionItemProps) {
+  const openVal = useSharedValue(expanded ? 1 : 0);
+
+  useEffect(() => {
+    openVal.value = withTiming(expanded ? 1 : 0, { duration: 220 });
+  }, [expanded, openVal]);
+
+  const contentStyle = useAnimatedStyle(() => ({
+    maxHeight: interpolate(openVal.value, [0, 1], [0, 3000]),
+    opacity: interpolate(openVal.value, [0, 0.5], [0, 1]),
+    overflow: "hidden" as const,
+  }));
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${interpolate(openVal.value, [0, 1], [0, 90])}deg` }],
+  }));
+
+  const handlePress = () => {
+    if (hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    onToggle(id);
+  };
+
+  return (
+    <View style={[accordionStyles.item, { borderBottomColor: muted + "30" }]}>
+      <Pressable onPress={handlePress} style={accordionStyles.header}>
+        <View style={accordionStyles.headerLeft}>
+          {iconName != null && (
+            <View style={[accordionStyles.headerIcon, { backgroundColor: accent + "20" }]}>
+              <IconSymbol name={iconName as any} size={18} color={accent} />
+            </View>
+          )}
+          <ThemedText style={[accordionStyles.headerTitle, { color: foreground }]}>
+            {title}
+          </ThemedText>
+        </View>
+        <Animated.View style={chevronStyle}>
+          <IconSymbol name="chevron.right" size={18} color={muted} />
+        </Animated.View>
+      </Pressable>
+      <Animated.View style={contentStyle}>
+        <View style={accordionStyles.content}>{children}</View>
+      </Animated.View>
+    </View>
+  );
+}
+
+const accordionStyles = StyleSheet.create({
+  item: {
+    borderBottomWidth: 1,
+  },
+  header: {
+    borderBottomWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  headerIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+});
+
 const Preferences = () => {
   const muted = useThemeColor("muted");
   const foreground = useThemeColor("foreground");
@@ -114,6 +223,16 @@ const Preferences = () => {
   const updateColorMode = useUserStore((state) => state.updateColorMode);
   const updateThemePalette = useUserStore((state) => state.updateThemePalette);
   const appVersion = Constants.expoConfig?.version ?? "1.0.0";
+
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const toggleSection = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const difficultyLabel =
     difficulty === "Mid" ? "Middle" : difficulty.length > 0 ? difficulty : "Not set";
@@ -246,151 +365,190 @@ const Preferences = () => {
 
   return (
     <View style={styles.container}>
-      <Card
-        style={[
-          styles.card,
-          {
-            borderColor: muted + "40",
-            backgroundColor: muted + "10",
-          },
-        ]}
-      >
-        <Card.Body style={styles.body}>
-          <View style={styles.themeSection}>
-            <ThemedText style={[styles.themeSectionTitle, { color: foreground }]}>
-              Theme
-            </ThemedText>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.themeSwatchList}
-              style={styles.themeSwatchScroll}
-            >
-              {PALETTE_OPTIONS.filter(
-                (option) => option.id !== "dark-pro" || colorMode === "dark",
-              ).map((option) => (
-                <ThemeSwatch
-                  key={option.id}
-                  id={option.id}
-                  label={option.label}
-                  backgroundColor={option.backgroundColor}
-                  accentColor={option.accentColor}
-                  isActive={themePalette === option.id}
-                  borderColor={accent}
-                  labelColor={foreground}
-                  onPress={() => handlePaletteSelect(option.id)}
-                />
-              ))}
-            </ScrollView>
-          </View>
-          <PreferenceRow
-            iconName="bell"
-            label="Notifications"
-            iconColor={accent}
-            foreground={foreground}
-            muted={muted}
-            type="switch"
-            switchValue={settings.notificationsEnabled}
-            onSwitchChange={handleNotificationsToggle}
-          />
-          <PreferenceRow
-            iconName="waveform"
-            label="Haptic Feedback"
-            iconColor={accent}
-            foreground={foreground}
-            muted={muted}
-            type="switch"
-            switchValue={settings.hapticsEnabled}
-            onSwitchChange={(val) => updateSettings({ hapticsEnabled: val })}
-          />
-          <PreferenceRow
-            iconName="speaker.wave.2"
-            label="Sound Effects"
-            iconColor={accent}
-            foreground={foreground}
-            muted={muted}
-            type="switch"
-            switchValue={settings.soundsEnabled}
-            onSwitchChange={(val) => updateSettings({ soundsEnabled: val })}
-          />
-          <PreferenceRow
+      <AccordionItem
+            id="appearance"
+            title="Appearance"
             iconName="paintbrush.fill"
-            label="Appearance"
-            iconColor={accent}
+            expanded={expandedIds.has("appearance")}
+            onToggle={toggleSection}
+            hapticsEnabled={settings.hapticsEnabled}
             foreground={foreground}
             muted={muted}
-            type="switch"
-            switchValue={colorMode === "dark"}
-            onSwitchChange={(on) => handleModeSelect(on ? "dark" : "light")}
-          />
-          <PreferenceRow
-            iconName="paintbrush"
-            label="Difficulty"
-            iconColor={accent}
-            foreground={foreground}
-            muted={muted}
-            value={difficultyLabel}
-            onPress={handleDifficultyPress}
-          />
-          <PreferenceRow
-            iconName="questionmark.circle"
-            label="Help & Support"
-            iconColor={accent}
-            foreground={foreground}
-            muted={muted}
-          />
-          <PreferenceRow
+            accent={accent}
+          >
+            <View style={styles.themeSection}>
+              <ThemedText style={[styles.themeSectionTitle, { color: foreground }]}>
+                Theme
+              </ThemedText>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.themeSwatchList}
+                style={styles.themeSwatchScroll}
+              >
+                {PALETTE_OPTIONS.filter(
+                  (option) => option.id !== "dark-pro" || colorMode === "dark",
+                ).map((option) => (
+                  <ThemeSwatch
+                    key={option.id}
+                    id={option.id}
+                    label={option.label}
+                    backgroundColor={option.backgroundColor}
+                    accentColor={option.accentColor}
+                    isActive={themePalette === option.id}
+                    borderColor={accent}
+                    labelColor={foreground}
+                    onPress={() => handlePaletteSelect(option.id)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+            <PreferenceRow
+              iconName="bell"
+              label="Notifications"
+              iconColor={accent}
+              foreground={foreground}
+              muted={muted}
+              type="switch"
+              switchValue={settings.notificationsEnabled}
+              onSwitchChange={handleNotificationsToggle}
+            />
+            <PreferenceRow
+              iconName="waveform"
+              label="Haptic Feedback"
+              iconColor={accent}
+              foreground={foreground}
+              muted={muted}
+              type="switch"
+              switchValue={settings.hapticsEnabled}
+              onSwitchChange={(val) => updateSettings({ hapticsEnabled: val })}
+            />
+            <PreferenceRow
+              iconName="speaker.wave.2"
+              label="Sound Effects"
+              iconColor={accent}
+              foreground={foreground}
+              muted={muted}
+              type="switch"
+              switchValue={settings.soundsEnabled}
+              onSwitchChange={(val) => updateSettings({ soundsEnabled: val })}
+            />
+            <PreferenceRow
+              iconName="paintbrush.fill"
+              label="Appearance"
+              iconColor={accent}
+              foreground={foreground}
+              muted={muted}
+              type="switch"
+              switchValue={colorMode === "dark"}
+              onSwitchChange={(on) => handleModeSelect(on ? "dark" : "light")}
+            />
+            <PreferenceRow
+              iconName="paintbrush"
+              label="Difficulty"
+              iconColor={accent}
+              foreground={foreground}
+              muted={muted}
+              value={difficultyLabel}
+              onPress={handleDifficultyPress}
+            />
+          </AccordionItem>
+
+          <AccordionItem
+            id="data"
+            title="Data & backup"
             iconName="square.and.arrow.up"
-            label="Export Data"
-            iconColor={accent}
+            expanded={expandedIds.has("data")}
+            onToggle={toggleSection}
+            hapticsEnabled={settings.hapticsEnabled}
             foreground={foreground}
             muted={muted}
-            onPress={handleExportDataPress}
-          />
-          <PreferenceRow
-            iconName="square.and.arrow.down"
-            label="Import Data"
-            iconColor={accent}
-            foreground={foreground}
-            muted={muted}
-            onPress={handleImportDataPress}
-          />
-          <PreferenceRow
-            iconName="lock.shield.fill"
-            label="Privacy Policy"
-            iconColor={accent}
-            foreground={foreground}
-            muted={muted}
-            onPress={() => router.push('/privacy')}
-          />
-          <PreferenceRow
+            accent={accent}
+          >
+            <PreferenceRow
+              iconName="questionmark.circle"
+              label="Help & Support"
+              iconColor={accent}
+              foreground={foreground}
+              muted={muted}
+            />
+            <PreferenceRow
+              iconName="square.and.arrow.up"
+              label="Export Data"
+              iconColor={accent}
+              foreground={foreground}
+              muted={muted}
+              onPress={handleExportDataPress}
+            />
+            <PreferenceRow
+              iconName="square.and.arrow.down"
+              label="Import Data"
+              iconColor={accent}
+              foreground={foreground}
+              muted={muted}
+              onPress={handleImportDataPress}
+            />
+          </AccordionItem>
+
+          <AccordionItem
+            id="legal"
+            title="Legal"
             iconName="doc.text.fill"
-            label="Terms & Conditions"
-            iconColor={accent}
+            expanded={expandedIds.has("legal")}
+            onToggle={toggleSection}
+            hapticsEnabled={settings.hapticsEnabled}
             foreground={foreground}
             muted={muted}
-            onPress={() => router.push('/terms')}
-          />
-          <PreferenceRow
-            iconName="arrow.turn.down.left"
-            label="Log Out"
-            iconColor="#F97373"
-            foreground="#F97373"
+            accent={accent}
+          >
+            <PreferenceRow
+              iconName="lock.shield.fill"
+              label="Privacy Policy"
+              iconColor={accent}
+              foreground={foreground}
+              muted={muted}
+              onPress={() => router.push('/privacy')}
+            />
+            <PreferenceRow
+              iconName="doc.text.fill"
+              label="Terms & Conditions"
+              iconColor={accent}
+              foreground={foreground}
+              muted={muted}
+              onPress={() => router.push('/terms')}
+            />
+          </AccordionItem>
+
+          <AccordionItem
+            id="account"
+            title="Account"
+            iconName="person.fill"
+            expanded={expandedIds.has("account")}
+            onToggle={toggleSection}
+            hapticsEnabled={settings.hapticsEnabled}
+            foreground={foreground}
             muted={muted}
-            isDestructive
-            onPress={handleLogoutPress}
-          />
-          <PreferenceRow
-            iconName="info.circle"
-            label="App Version"
-            iconColor={muted}
-            foreground={muted}
-            muted={muted}
-            value={appVersion}
-            showChevron={false}
-          />
-        </Card.Body>
-      </Card>
+            accent={accent}
+          >
+            <PreferenceRow
+              iconName="arrow.turn.down.left"
+              label="Log Out"
+              iconColor="#F97373"
+              foreground="#F97373"
+              muted={muted}
+              isDestructive
+              onPress={handleLogoutPress}
+            />
+            <PreferenceRow
+              iconName="info.circle"
+              label="App Version"
+              iconColor={muted}
+              foreground={muted}
+              muted={muted}
+              value={appVersion}
+              showChevron={false}
+            />
+          </AccordionItem>
     </View>
   );
 };
@@ -512,14 +670,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginTop: 32,
     marginBottom: 32,
-  },
-  card: {
-    borderRadius: 24,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  body: {
-    paddingVertical: 8,
   },
   themeSection: {
     paddingVertical: 16,

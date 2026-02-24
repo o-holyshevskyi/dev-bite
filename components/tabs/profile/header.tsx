@@ -1,10 +1,13 @@
 import { ThemedText } from "@/components/themed-text";
+import { IconSymbol } from "@/components/ui/icon-symbol.ios";
 import { format } from "date-fns";
+import { useRouter } from "expo-router";
 import { useThemeColor } from "heroui-native";
 import { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 const Header = () => {
+    const router = useRouter();
     const foreground = useThemeColor('foreground');
     const muted = useThemeColor('muted');
 
@@ -26,7 +29,9 @@ const Header = () => {
             <View>
                 <ThemedText style={[styles.headerTitleText, { color: foreground }]}>Profile</ThemedText>
             </View>
-            <View />
+            <Pressable onPress={() => router.push('/settings')} style={styles.settingsButton}>
+                <IconSymbol name="gearshape.fill" size={22} color={foreground} />
+            </Pressable>
         </View>
     );
 }
@@ -43,6 +48,12 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: '800',
         marginTop: 4,
+    },
+    settingsButton: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     streakChip: {
         alignSelf: 'center',

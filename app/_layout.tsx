@@ -5,10 +5,10 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { HeroUINativeProvider } from 'heroui-native';
 import { useEffect } from 'react';
-import { Uniwind } from 'uniwind';
 import { AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
+import { Uniwind } from 'uniwind';
 import '../global.css';
 
 import { LevelCompleteModal } from '@/components/path/level-complete-modal';
@@ -141,6 +141,10 @@ export default function RootLayout() {
             />
             <Stack.Screen name="privacy" options={{ headerShown: false }} />
             <Stack.Screen name="terms" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="settings"
+              options={{ headerShown: false }}
+            />
             <Stack.Screen name="modals" options={{ headerShown: false,presentation: 'modal' }} />
           </Stack>
           <StatusBar style="auto" />

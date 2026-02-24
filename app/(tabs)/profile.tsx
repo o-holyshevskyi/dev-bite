@@ -7,7 +7,6 @@ import Level from '@/components/tabs/profile/level';
 import Stats from '@/components/tabs/profile/stats';
 import Badges from '@/components/tabs/profile/badges';
 import UpgradeCta from '@/components/tabs/profile/upgrade-cta';
-import Preferences from '@/components/tabs/profile/preferences';
 import LeaderboardEntry from '@/components/tabs/profile/leaderboard-entry';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol.ios';
@@ -196,7 +195,6 @@ export default function ProfileScreen() {
           <UpgradeCta />
         )}
         <LeaderboardEntry />
-        <Preferences />
       </Animated.ScrollView>
 
       <Dialog isOpen={isAchievementDialogOpen} onOpenChange={setIsAchievementDialogOpen}>
