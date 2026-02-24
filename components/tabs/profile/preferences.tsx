@@ -356,6 +356,22 @@ const Preferences = () => {
             onPress={handleImportDataPress}
           />
           <PreferenceRow
+            iconName="lock.shield.fill"
+            label="Privacy Policy"
+            iconColor={accent}
+            foreground={foreground}
+            muted={muted}
+            onPress={() => router.push('/privacy')}
+          />
+          <PreferenceRow
+            iconName="doc.text.fill"
+            label="Terms & Conditions"
+            iconColor={accent}
+            foreground={foreground}
+            muted={muted}
+            onPress={() => router.push('/terms')}
+          />
+          <PreferenceRow
             iconName="arrow.turn.down.left"
             label="Log Out"
             iconColor="#F97373"

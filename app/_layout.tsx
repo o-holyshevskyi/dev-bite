@@ -139,6 +139,8 @@ export default function RootLayout() {
               name="paywall"
               options={{ headerShown: false, presentation: 'modal' }}
             />
+            <Stack.Screen name="privacy" options={{ headerShown: false }} />
+            <Stack.Screen name="terms" options={{ headerShown: false }} />
             <Stack.Screen name="modals" options={{ headerShown: false,presentation: 'modal' }} />
           </Stack>
           <StatusBar style="auto" />
